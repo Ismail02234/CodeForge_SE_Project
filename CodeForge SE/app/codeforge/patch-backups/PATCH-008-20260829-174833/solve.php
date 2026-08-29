@@ -84,19 +84,6 @@ include __DIR__ . '/includes/header.php';
     <div class="card card-pad">
         <div class="card-head"><h3>Code workspace</h3><span class="badge-dot text-green">Session active</span></div>
         <?php if($result): ?><div class="toast-banner <?= $result['verdict']==='AC'?'success':'danger' ?>"><strong><?= e($result['verdict']) ?></strong> · <?= e($result['feedback']) ?></div><?php endif; ?>
-        <?php $reward = is_array($result['gamification'] ?? null) ? $result['gamification'] : null; ?>
-        <?php if($reward && !empty($reward['enabled']) && ((int)($reward['xp_earned'] ?? 0) > 0 || !empty($reward['new_badges']))): ?>
-            <div class="reward-strip mb-2">
-                <div><span class="eyebrow">Progress reward</span><strong>+<?= (int)$reward['xp_earned'] ?> XP</strong></div>
-                <?php if(!empty($reward['new_badges'])): ?>
-                    <div class="reward-badges">
-                    <?php foreach($reward['new_badges'] as $badge): ?>
-                        <span class="mini-achievement"><i class="bi <?= e($badge['icon']) ?>"></i><?= e($badge['name']) ?></span>
-                    <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
         <form method="post">
             <?= csrf_field() ?><input type="hidden" name="problem_id" value="<?= e($problemId) ?>"><input type="hidden" name="session_id" value="<?= e($sessionId) ?>"><input type="hidden" name="contest_id" value="<?= e($contestId) ?>">
             <label class="form-label">Language</label><select class="form-select" name="language" style="margin-bottom:12px"><?php foreach(['C++','Python','JavaScript','PHP'] as $option): ?><option <?= $language===$option?'selected':'' ?>><?= e($option) ?></option><?php endforeach; ?></select>

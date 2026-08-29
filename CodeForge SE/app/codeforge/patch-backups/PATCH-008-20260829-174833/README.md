@@ -5,16 +5,15 @@ A modernized competitive-programming / DBMS software-lab project built with **pl
 ## Major modules
 
 - Secure login + role-based admin access
-- Dashboard with live metrics, Quest Advisor, topic Skill Tree and progression
+- Dashboard with live metrics
 - Problems + safe prototype submission workflow
 - Contests + contest problem sets + leaderboard
 - Rivalry comparison
 - University analytics
-- Global search and profiles with XP, levels, streaks and achievement badges
+- Global search and profiles
 - **Code DNA** — data-driven performance fingerprint and archetype
 - **Ghost Race** — race against historical solver timelines
 - **SQL Battle Arena** — read-only SQL challenges with correctness/speed/efficiency scoring
-- University analytics with live top-solver ranking
 - Secure admin data console
 
 ## Important safety decision
@@ -39,20 +38,6 @@ The SQL Battle validator accepts only SELECT/CTE queries and restricts access to
 
 - User: `Ismail` / `123456`
 - Admin: `Admin` / `admin123`
-
-
-## Upgrading an existing PATCH-007 database
-
-PATCH-008 adds isolated gamification tables and one submission-history index. It does not alter the existing `users` authentication columns or delete any records. After copying the new files, run:
-
-```powershell
-D:\xampp\php\php.exe database\migrate_008_gamification.php
-D:\xampp\php\php.exe database\optimize_cli.php
-```
-
-The migration is idempotent. It recalculates XP, streaks and eligible badges from accepted-submission history, so running it again repairs drift instead of duplicating rewards.
-
-Accepted solves from both normal practice and Ghost Race are synchronized into the same progression history after their core transactions commit.
 
 ## If your XAMPP MySQL uses port 3307
 

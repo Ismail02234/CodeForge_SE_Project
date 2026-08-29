@@ -3,17 +3,14 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/PrototypeJudgeService.php';
-require_once __DIR__ . '/GamificationService.php';
 
 final class GhostRaceService
 {
     private PrototypeJudgeService $judge;
-    private GamificationService $gamification;
 
     public function __construct(private PDO $pdo)
     {
         $this->judge = new PrototypeJudgeService();
-        $this->gamification = new GamificationService($pdo);
     }
 
     public function availableGhosts(string $challengerId): array
@@ -271,20 +268,9 @@ final class GhostRaceService
             throw $error;
         }
 
-        $gamification = null;
-        if ($judged['verdict'] === 'AC') {
-            // Keep rewards outside the Ghost Race transaction so they cannot roll back a valid race.
-            try {
-                $gamification = $this->gamification->syncUserFromHistory($challengerId);
-            } catch (Throwable $error) {
-                error_log('Ghost Race gamification sync failed: ' . $error->getMessage());
-            }
-        }
-
         return array_merge($judged, [
             'elapsed_seconds' => $elapsed,
             'submission_id' => $submissionId,
-            'gamification' => $gamification,
         ]);
     }
 

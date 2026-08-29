@@ -3,17 +3,14 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/PrototypeJudgeService.php';
-require_once __DIR__ . '/GamificationService.php';
 
 final class ProblemPracticeService
 {
     private PrototypeJudgeService $judge;
-    private GamificationService $gamification;
 
     public function __construct(private PDO $pdo)
     {
         $this->judge = new PrototypeJudgeService();
-        $this->gamification = new GamificationService($pdo);
     }
 
     public function getProblem(string $problemId): ?array
@@ -229,21 +226,9 @@ final class ProblemPracticeService
             throw $error;
         }
 
-        $gamification = null;
-        if ($judged['verdict'] === 'AC') {
-            // Rewards are synchronized after the core submission transaction commits.
-            // A gamification failure must never invalidate a valid programming submission.
-            try {
-                $gamification = $this->gamification->syncUserFromHistory($userId);
-            } catch (Throwable $error) {
-                error_log('Gamification sync failed: ' . $error->getMessage());
-            }
-        }
-
         return array_merge($judged, [
             'id' => $submissionId,
             'elapsed_seconds' => $elapsed,
-            'gamification' => $gamification,
         ]);
     }
 

@@ -88,7 +88,6 @@ CREATE TABLE contest_participants (
     score INT NOT NULL DEFAULT 0,
     joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (contest_id, user_id),
-    INDEX idx_cpa_user (user_id),
     CONSTRAINT fk_cpa_contest FOREIGN KEY (contest_id)
         REFERENCES contests(id) ON DELETE CASCADE,
     CONSTRAINT fk_cpa_user FOREIGN KEY (user_id)
@@ -109,9 +108,7 @@ CREATE TABLE problem_sessions (
     CONSTRAINT fk_ps_problem FOREIGN KEY (problem_id)
         REFERENCES problems(id) ON DELETE CASCADE,
     INDEX idx_ps_user_problem (user_id, problem_id),
-    INDEX idx_ps_status (status),
-    INDEX idx_ps_user_problem_status_started (user_id, problem_id, status, started_at),
-    INDEX idx_ps_status_user_problem_solve (status, user_id, problem_id, solve_time_seconds)
+    INDEX idx_ps_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE submissions (
@@ -139,56 +136,7 @@ CREATE TABLE submissions (
     INDEX idx_sub_user (user_id),
     INDEX idx_sub_problem (problem_id),
     INDEX idx_sub_user_verdict (user_id, verdict),
-    INDEX idx_sub_session_elapsed (session_id, elapsed_seconds),
-    INDEX idx_sub_user_time (user_id, submitted_at, id),
-    INDEX idx_sub_user_verdict_problem (user_id, verdict, problem_id),
-    INDEX idx_sub_user_verdict_time_problem (user_id, verdict, submitted_at, problem_id),
-    INDEX idx_sub_problem_verdict_user (problem_id, verdict, user_id),
-    INDEX idx_sub_contest_user_problem_verdict (contest_id, user_id, problem_id, verdict)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- Gamification is isolated from the core user table so it can be added or rebuilt without changing authentication data.
-CREATE TABLE levels (
-    level INT UNSIGNED PRIMARY KEY,
-    title VARCHAR(80) NOT NULL,
-    xp_required INT UNSIGNED NOT NULL,
-    UNIQUE KEY uq_levels_xp (xp_required)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE badges (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(255) NOT NULL,
-    icon VARCHAR(80) NOT NULL,
-    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-    INDEX idx_badges_sort (sort_order, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE gamification_profiles (
-    user_id VARCHAR(50) PRIMARY KEY,
-    xp INT UNSIGNED NOT NULL DEFAULT 0,
-    current_streak INT UNSIGNED NOT NULL DEFAULT 0,
-    longest_streak INT UNSIGNED NOT NULL DEFAULT 0,
-    last_solved_date DATE NULL,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_gp_user FOREIGN KEY (user_id)
-        REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_gp_xp (xp),
-    INDEX idx_gp_last_solved (last_solved_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE user_badges (
-    user_id VARCHAR(50) NOT NULL,
-    badge_id VARCHAR(50) NOT NULL,
-    earned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, badge_id),
-    CONSTRAINT fk_ub_user FOREIGN KEY (user_id)
-        REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ub_badge FOREIGN KEY (badge_id)
-        REFERENCES badges(id) ON DELETE CASCADE,
-    INDEX idx_ub_badge (badge_id, earned_at),
-    INDEX idx_ub_earned (earned_at)
+    INDEX idx_sub_session_elapsed (session_id, elapsed_seconds)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ghost_races (
@@ -214,9 +162,7 @@ CREATE TABLE ghost_races (
         REFERENCES problem_sessions(id) ON DELETE CASCADE,
     CONSTRAINT fk_gr_challenger_session FOREIGN KEY (challenger_session_id)
         REFERENCES problem_sessions(id) ON DELETE CASCADE,
-    INDEX idx_gr_challenger (challenger_id, started_at),
-    INDEX idx_gr_challenger_result_started (challenger_id, result, started_at),
-    INDEX idx_gr_challenger_session_result (challenger_session_id, result)
+    INDEX idx_gr_challenger (challenger_id, started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE sql_challenges (
@@ -249,10 +195,7 @@ CREATE TABLE sql_battles (
     CONSTRAINT fk_sb_winner FOREIGN KEY (winner_id)
         REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_sb_players (player1_id, player2_id),
-    INDEX idx_sb_challenge_status_players (challenge_id, status, player1_id, player2_id),
-    INDEX idx_sb_status (status),
-    INDEX idx_sb_player1_created (player1_id, created_at),
-    INDEX idx_sb_player2_created (player2_id, created_at)
+    INDEX idx_sb_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE sql_attempts (
@@ -274,9 +217,7 @@ CREATE TABLE sql_attempts (
     CONSTRAINT fk_sa_user FOREIGN KEY (user_id)
         REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_sa_user (user_id, submitted_at),
-    INDEX idx_sa_battle_user (battle_id, user_id),
-    INDEX idx_sa_challenge_status (challenge_id, status),
-    INDEX idx_sa_battle_status_user_score (battle_id, status, user_id, score)
+    INDEX idx_sa_battle_user (battle_id, user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE activity_logs (
@@ -287,8 +228,7 @@ CREATE TABLE activity_logs (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_activity_user FOREIGN KEY (user_id)
         REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_activity_created (created_at),
-    INDEX idx_activity_user_created (user_id, created_at)
+    INDEX idx_activity_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- SQL Arena sandbox tables: deliberately contain no passwords or sensitive columns.
@@ -332,35 +272,14 @@ INSERT INTO universities (name, city) VALUES
 ('Metropolitan Computing Academy', 'Khulna');
 
 -- Demo passwords:
--- Ismail / Tamjid / David / Anon => 123456
+-- Ismail / Tamjid / David / Anon => demo123
 -- Admin => admin123
 INSERT INTO users (id, username, password, role, rating, university, `rank`, created_at) VALUES
-('u1','Ismail','$2y$12$zmZDLq/UGFX.SjY.bRWDFOOXakNXxwHv0q6uHLhnyXAbWSrfejX56','user',1451,'Tech University of Science','Specialist','2025-09-01 09:00:00'),
-('u2','Tamjid','$2y$12$zmZDLq/UGFX.SjY.bRWDFOOXakNXxwHv0q6uHLhnyXAbWSrfejX56','user',1520,'State College of Engineering','Expert','2025-09-01 09:05:00'),
-('u3','David','$2y$12$zmZDLq/UGFX.SjY.bRWDFOOXakNXxwHv0q6uHLhnyXAbWSrfejX56','user',1300,'National Institute','Pupil','2025-09-01 09:10:00'),
-('u4','Anon','$2y$12$zmZDLq/UGFX.SjY.bRWDFOOXakNXxwHv0q6uHLhnyXAbWSrfejX56','user',980,'Tech University of Science','Newbie','2025-09-01 09:15:00'),
+('u1','Ismail','$2y$12$7xtJmjBWTGO9WkgeJgmB8eNjzceNFbhuAeXnIVS6kokDxqf5Oe1Be','user',1451,'Tech University of Science','Specialist','2025-09-01 09:00:00'),
+('u2','Tamjid','$2y$12$7xtJmjBWTGO9WkgeJgmB8eNjzceNFbhuAeXnIVS6kokDxqf5Oe1Be','user',1520,'State College of Engineering','Expert','2025-09-01 09:05:00'),
+('u3','David','$2y$12$7xtJmjBWTGO9WkgeJgmB8eNjzceNFbhuAeXnIVS6kokDxqf5Oe1Be','user',1300,'National Institute','Pupil','2025-09-01 09:10:00'),
+('u4','Anon','$2y$12$7xtJmjBWTGO9WkgeJgmB8eNjzceNFbhuAeXnIVS6kokDxqf5Oe1Be','user',980,'Tech University of Science','Newbie','2025-09-01 09:15:00'),
 ('u_admin','Admin','$2y$12$kmk5/Ms7pzfYScGw0ZDWGOj7Ryl7vSTKD.gPyH7apyMdgBvtkHE7S','admin',1680,'Metropolitan Computing Academy','Expert','2025-09-01 08:00:00');
-
-
-INSERT INTO levels (level,title,xp_required) VALUES
-(1,'Code Sprout',0),
-(2,'Byte Explorer',50),
-(3,'Logic Wizard',120),
-(4,'Syntax Seeker',250),
-(5,'Algorithm Apprentice',450),
-(6,'Data Dynamo',700),
-(7,'Code Commander',1000),
-(8,'Binary Baron',1400),
-(9,'Pixel Paladin',1900),
-(10,'CodeForge Champion',2500);
-
-INSERT INTO badges (id,name,description,icon,sort_order) VALUES
-('first_steps','First Steps','Solved your first problem.','bi-star-fill',10),
-('on_a_roll','On a Roll','Reached a 3-day solving streak.','bi-fire',20),
-('century','Century','Earned at least 100 XP.','bi-trophy-fill',30),
-('explorer','Explorer','Solved problems across 3 or more topics.','bi-compass',40),
-('topic_master','Topic Master','Solved every problem in at least one topic.','bi-graph-up-arrow',50),
-('sprout_master','Sprout Master','Solved 10 Easy problems.','bi-patch-check-fill',60);
 
 INSERT INTO problems (id,title,topic,difficulty,description,tags,starter_code) VALUES
 ('p1','Hello World Logic','Basic','Easy','Read a name and print a friendly greeting. The goal is to verify input/output fundamentals.','intro,io,syntax','#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    // your code\n    return 0;\n}'),

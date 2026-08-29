@@ -5,7 +5,6 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 require_once $root . '/core/helpers.php';
 require_once $root . '/services/CodeDnaCalculator.php';
-require_once $root . '/services/GamificationCalculator.php';
 require_once $root . '/services/PrototypeJudgeService.php';
 require_once $root . '/services/SqlJudgeService.php';
 
@@ -22,22 +21,6 @@ check(CodeDnaCalculator::difficultyScore('Hard') > CodeDnaCalculator::difficulty
 check(CodeDnaCalculator::topicScore(100,100,100,100) === 100, 'Topic score max');
 check(CodeDnaCalculator::consistency([1,1,1,1]) === 100, 'Consistency stable accepted streak');
 check(CodeDnaCalculator::archetype(['speed'=>90,'accuracy'=>80])['name'] === 'Fast Strategist', 'Archetype classification');
-
-check(GamificationCalculator::xpForDifficulty('Easy') === 10, 'Gamification Easy XP reward');
-check(GamificationCalculator::xpForDifficulty('Hard') === 50, 'Gamification Hard XP reward');
-check(GamificationCalculator::totalXp(['Easy','Medium','Hard']) === 85, 'Gamification XP total is deterministic');
-$streak = GamificationCalculator::streakStats(['2026-08-27','2026-08-28','2026-08-29'], '2026-08-29');
-check($streak['current_streak'] === 3 && $streak['longest_streak'] === 3, 'Gamification counts consecutive solve streaks');
-$streak = GamificationCalculator::streakStats(['2026-08-20','2026-08-21','2026-08-25','2026-08-26'], '2026-08-26');
-check($streak['current_streak'] === 2 && $streak['longest_streak'] === 2, 'Gamification handles streak gaps');
-$streak = GamificationCalculator::streakStats(['2026-08-20','2026-08-21'], '2026-08-29');
-check($streak['current_streak'] === 0 && $streak['longest_streak'] === 2, 'Stale streak displays as inactive without losing the record');
-$level = GamificationCalculator::levelProgress(75, [
-    ['level'=>1,'title'=>'A','xp_required'=>0],
-    ['level'=>2,'title'=>'B','xp_required'=>50],
-    ['level'=>3,'title'=>'C','xp_required'=>100],
-]);
-check((int)$level['current']['level'] === 2 && (int)$level['percent'] === 50, 'Level progress uses threshold range');
 
 $judge = new PrototypeJudgeService();
 $r = $judge->evaluate('short', 'C++', 'Easy');
@@ -108,34 +91,6 @@ check(str_contains($dashboardText, 'require_login('), 'dashboard.php remains aut
 check(str_contains($headerText, 'topbar-logout') && str_contains($indexText, 'logout.php'), 'Logout controls exist in app and landing page');
 check(str_contains($headerText, 'Space+Grotesk') && str_contains($polishCss, 'Space Grotesk'), 'Futuristic readable font system is installed');
 check(str_contains($aggressiveCss, 'overscroll-behavior-y: contain') && str_contains($aggressiveCss, 'overflow-y: auto'), 'Sidebar keeps independent scrolling');
-
-$schemaText = file_get_contents($root . '/database/schema_and_seed.sql');
-$dashboardSource = file_get_contents($root . '/dashboard.php');
-$profileSource = file_get_contents($root . '/profile.php');
-$practiceSource = file_get_contents($root . '/services/ProblemPracticeService.php');
-$ghostSource = file_get_contents($root . '/services/GhostRaceService.php');
-$advisorSource = file_get_contents($root . '/services/QuestAdvisorService.php');
-$universitySource = file_get_contents($root . '/university.php');
-$guideSource = file_get_contents($root . '/how_it_works.php');
-
-check(str_contains($schemaText, 'CREATE TABLE gamification_profiles') && str_contains($schemaText, 'CREATE TABLE user_badges'), 'Gamification schema is part of clean install');
-check(str_contains($schemaText, "'first_steps'") && str_contains($schemaText, "'topic_master'"), 'Badge catalog is seeded');
-check(str_contains($dashboardSource, 'Quest Advisor') && str_contains($dashboardSource, 'Skill Tree'), 'Dashboard includes teammate recommendation features');
-check(str_contains($dashboardSource, 'GamificationService') && str_contains($profileSource, 'achievement-grid'), 'Progress and badge UI are integrated');
-check(str_contains($profileSource, 'LIMIT 20') && str_contains($profileSource, 's.language'), 'Profile keeps extended submission history');
-check(str_contains($advisorSource, 'NOT EXISTS') && str_contains($advisorSource, 'SELECT DISTINCT problem_id'), 'Quest advisor avoids duplicate solve counting');
-$commitPos = strpos($practiceSource, '$this->pdo->commit();');
-$rewardPos = strpos($practiceSource, 'syncUserFromHistory');
-check($commitPos !== false && $rewardPos !== false && $commitPos < $rewardPos, 'Gamification runs after the core submission commit');
-$ghostCommitPos = strpos($ghostSource, '$this->pdo->commit();', strpos($ghostSource, 'public function submit'));
-$ghostRewardPos = strpos($ghostSource, 'syncUserFromHistory', strpos($ghostSource, 'public function submit'));
-check(
-    $ghostCommitPos !== false && $ghostRewardPos !== false && $ghostCommitPos < $ghostRewardPos,
-    'Ghost Race accepted solves synchronize gamification after the race commit'
-);
-check(str_contains($universitySource, 'ROW_NUMBER() OVER') && str_contains($universitySource, 'top_username'), 'University top solver is computed without N+1 queries');
-check(file_exists($root . '/database/migrate_008_gamification.php'), 'Idempotent PATCH-008 migration exists');
-check(str_contains($guideSource, 'Gamification') && str_contains($guideSource, 'Quest Advisor') && str_contains($guideSource, 'Skill Tree'), 'Technical guide documents merged features');
 
 echo "\n{$passed} passed, {$failed} failed.\n";
 exit($failed === 0 ? 0 : 1);

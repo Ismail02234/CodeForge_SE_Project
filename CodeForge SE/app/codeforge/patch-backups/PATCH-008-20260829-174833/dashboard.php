@@ -1,13 +1,9 @@
 <?php
 require_once __DIR__ . '/core/bootstrap.php';
 require_once __DIR__ . '/services/CodeDnaService.php';
-require_once __DIR__ . '/services/GamificationService.php';
-require_once __DIR__ . '/services/QuestAdvisorService.php';
 
 $user = require_login($pdo);
 $dna = (new CodeDnaService($pdo))->calculate((string) $user['id']);
-$gamification = (new GamificationService($pdo))->summary((string) $user['id']);
-$advisor = (new QuestAdvisorService($pdo))->dashboardData((string) $user['id']);
 
 $solved = (int) $dna['stats']['solved_problems'];
 $subs = (int) $dna['stats']['total_submissions'];
@@ -75,52 +71,6 @@ include __DIR__ . '/includes/header.php';
     <a class="card card-pad feature-card" href="code_dna.php"><div class="feature-icon"><i class="bi bi-hexagon"></i></div><h3>Code DNA</h3><p>Data-driven skill fingerprint across accuracy, speed, challenge handling, consistency, and topic mastery.</p><span class="text-cyan">Open intelligence →</span></a>
     <a class="card card-pad feature-card" href="ghost_race.php"><div class="feature-icon"><i class="bi bi-ghost"></i></div><h3>Ghost Race</h3><p>Race against the recorded solving timeline of another programmer without requiring them online.</p><span class="text-cyan">Choose a ghost →</span></a>
     <a class="card card-pad feature-card" href="sql_battle.php"><div class="feature-icon"><i class="bi bi-database-gear"></i></div><h3>SQL Battle Arena</h3><p>Compete on safe SELECT-only challenges scored for correctness, speed, and estimated efficiency.</p><span class="text-cyan">Enter arena →</span></a>
-</div>
-
-<div class="grid grid-3 mt-3">
-    <div class="card card-pad progress-card">
-        <div class="card-head"><h3><i class="bi bi-stars text-amber"></i> Progress</h3><span class="pill pill-neutral">LEVEL <?= (int)($gamification['level']['level'] ?? 1) ?></span></div>
-        <?php if(!empty($gamification['enabled'])): ?>
-            <div class="level-title"><?= e($gamification['level']['title'] ?? 'Code Sprout') ?></div>
-            <div class="metric-row">
-                <label>XP</label><div class="progress"><span style="width:<?= (int)$gamification['level_progress'] ?>%"></span></div><b><?= (int)$gamification['xp'] ?></b>
-            </div>
-            <div class="mini-stat-grid">
-                <div><span>Current streak</span><strong><?= (int)$gamification['current_streak'] ?>d</strong></div>
-                <div><span>Best streak</span><strong><?= (int)$gamification['longest_streak'] ?>d</strong></div>
-                <div><span>Badges</span><strong><?= (int)$gamification['earned_badge_count'] ?></strong></div>
-            </div>
-            <?php if(!empty($gamification['earned_badges'])): ?><div class="reward-badges mt-2"><?php foreach(array_slice($gamification['earned_badges'],0,4) as $badge): ?><span class="mini-achievement" title="<?= e($badge['description']) ?>"><i class="bi <?= e($badge['icon']) ?>"></i><?= e($badge['name']) ?></span><?php endforeach; ?></div><?php endif; ?>
-        <?php else: ?>
-            <p class="muted small">Gamification data becomes available after the PATCH-008 database migration.</p>
-        <?php endif; ?>
-    </div>
-
-    <div class="card card-pad">
-        <div class="card-head"><h3><i class="bi bi-compass text-cyan"></i> Quest Advisor</h3><span class="pill pill-neutral">PERSONALIZED</span></div>
-        <?php if(!empty($advisor['weakest'])): ?>
-            <p class="muted small">Lowest completion area: <strong class="text-cyan"><?= e($advisor['weakest']['topic']) ?></strong> · <?= (int)$advisor['weakest']['solved_count'] ?>/<?= (int)$advisor['weakest']['total_problems'] ?> solved.</p>
-            <div class="list">
-                <?php foreach($advisor['recommendations'] as $rec): ?>
-                    <a class="list-item" href="solve.php?id=<?= e($rec['id']) ?>"><div><strong><?= e($rec['title']) ?></strong><br><small><?= e($rec['topic']) ?></small></div><span class="pill <?= difficulty_class($rec['difficulty']) ?>"><?= e($rec['difficulty']) ?></span></a>
-                <?php endforeach; ?>
-                <?php if(!$advisor['recommendations']): ?><div class="empty compact">This topic is already complete.</div><?php endif; ?>
-            </div>
-        <?php else: ?><div class="empty compact">No problem topics are available yet.</div><?php endif; ?>
-    </div>
-
-    <div class="card card-pad">
-        <div class="card-head"><h3><i class="bi bi-diagram-3 text-green"></i> Skill Tree</h3><span class="pill pill-neutral"><?= count($advisor['mastery']) ?> TOPICS</span></div>
-        <div class="skill-tree-list">
-            <?php foreach(array_slice($advisor['mastery'],0,6) as $topicRow): ?>
-                <div class="topic-bar">
-                    <span class="name"><?= e($topicRow['topic']) ?></span>
-                    <div class="progress"><span style="width:<?= (int)$topicRow['mastery_percent'] ?>%"></span></div>
-                    <b><?= (int)$topicRow['mastery_percent'] ?>%</b>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
 </div>
 
 <div class="grid grid-2 mt-3">

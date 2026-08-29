@@ -60,7 +60,6 @@ $indexes = [
     ['problem_sessions', 'idx_ps_status_user_problem_solve', ['status', 'user_id', 'problem_id', 'solve_time_seconds']],
     ['submissions', 'idx_sub_user_time', ['user_id', 'submitted_at', 'id']],
     ['submissions', 'idx_sub_user_verdict_problem', ['user_id', 'verdict', 'problem_id']],
-    ['submissions', 'idx_sub_user_verdict_time_problem', ['user_id', 'verdict', 'submitted_at', 'problem_id']],
     ['submissions', 'idx_sub_problem_verdict_user', ['problem_id', 'verdict', 'user_id']],
     ['submissions', 'idx_sub_contest_user_problem_verdict', ['contest_id', 'user_id', 'problem_id', 'verdict']],
     ['ghost_races', 'idx_gr_challenger_result_started', ['challenger_id', 'result', 'started_at']],
@@ -77,7 +76,7 @@ foreach ($indexes as [$table, $index, $columns]) {
     ensureIndex($pdo, $table, $index, $columns);
 }
 
-foreach (['users', 'problems', 'problem_sessions', 'submissions', 'ghost_races', 'sql_battles', 'sql_attempts', 'gamification_profiles', 'user_badges'] as $table) {
+foreach (['users', 'problems', 'problem_sessions', 'submissions', 'ghost_races', 'sql_battles', 'sql_attempts'] as $table) {
     if (tableExistsForOptimization($pdo, $table)) {
         try {
             $pdo->exec("ANALYZE TABLE `{$table}`");

@@ -27,3 +27,4 @@ tools/composer/
 .vscode/
 .DS_Store
 Thumbs.db
+PATCH-*.ps1

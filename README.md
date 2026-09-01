@@ -24,7 +24,7 @@ The migration contains the working features from the current project:
 - University leaderboard and university comparison
 - Global search
 - User profiles
-- Code DNA analytics and radar chart
+- Performance Profile analytics and radar chart
 - Ghost Race historical timeline replay
 - SQL Battle practice, battles and leaderboard
 - Gamification / XP / levels / badges

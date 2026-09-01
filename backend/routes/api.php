@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\AdminController;
-use App\Http\Controllers\CodeDnaController;
 use App\Http\Controllers\ContestController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\GhostRaceController;
+use App\Http\Controllers\PerformanceProfileController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicController;
@@ -31,8 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/problems/{id}/session', [ProblemController::class, 'start']);
     Route::post('/problems/{id}/submit', [ProblemController::class, 'submit']);
 
-    Route::get('/code-dna', [CodeDnaController::class, 'me']);
-    Route::get('/code-dna/{userId}', [CodeDnaController::class, 'show']);
+    Route::get('/performance-profile', [PerformanceProfileController::class, 'me']);
+    Route::get('/performance-profile/{userId}', [PerformanceProfileController::class, 'show']);
     Route::get('/profiles/{id}', [ProfileController::class, 'show']);
     Route::get('/gamification', [GamificationController::class, 'me']);
     Route::get('/rivalry', [RivalryController::class, 'compare']);
@@ -56,6 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ghost-races/{id}/forfeit', [GhostRaceController::class, 'forfeit']);
 
     Route::get('/sql/challenges', [SqlBattleController::class, 'challenges']);
+    Route::get('/sql/opponents', [SqlBattleController::class, 'opponents']);
     Route::get('/sql/leaderboard', [SqlBattleController::class, 'leaderboard']);
     Route::get('/sql/battles', [SqlBattleController::class, 'recent']);
     Route::post('/sql/battles', [SqlBattleController::class, 'createBattle']);

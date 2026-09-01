@@ -30,7 +30,7 @@
   <div>
     <span class="eyebrow">HEAD TO HEAD</span>
     <h1>Rivalry Lab</h1>
-    <p>Compare two live Code DNA profiles and estimate the competitive edge.</p>
+    <p>Compare two live Performance Profiles and estimate the competitive edge.</p>
   </div>
 </div>
 {#if !data && !error}<Loading />{:else}<form class="filter-bar" on:submit|preventDefault={load}>
@@ -51,7 +51,7 @@
         <h2>{data.left.user.username}</h2>
         <strong>{data.left.user.rating}</strong>
         <p>{data.left.archetype.name}</p>
-        <div class="dna-score-small">DNA {data.left.overall}%</div>
+        <div class="profile-score-small">PROFILE SCORE {data.left.overall}%</div>
       </div>
       <div class="versus">
         <span>{data.prediction.left_probability}%</span><b>VS</b><span
@@ -63,7 +63,7 @@
         <h2>{data.right.user.username}</h2>
         <strong>{data.right.user.rating}</strong>
         <p>{data.right.archetype.name}</p>
-        <div class="dna-score-small">DNA {data.right.overall}%</div>
+        <div class="profile-score-small">PROFILE SCORE {data.right.overall}%</div>
       </div>
     </section>
     <section class="panel">

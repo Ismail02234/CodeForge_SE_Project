@@ -19,14 +19,14 @@
     </div>
   </article>
   <article class="panel">
-    <span class="eyebrow">CODE DNA</span>
+    <span class="eyebrow">Performance Profile</span>
     <h2>Explainable scoring</h2>
     <div class="code-box">
       Topic Score = 45% accuracy + 25% difficulty + 20% speed + 10% recency
     </div>
     <p>
-      Overall DNA combines problem solving, accuracy, speed, consistency, versatility and challenge
-      handling.
+      Overall PROFILE combines problem solving, accuracy, speed, consistency, versatility and
+      challenge handling.
     </p>
   </article>
   <article class="panel">

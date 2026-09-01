@@ -659,7 +659,7 @@ tbody tr:hover {
   background-size: 70px 70px;
   mask-image: radial-gradient(circle at 60% 40%, black, transparent 80%);
 }
-.landing > *:not(.forge-canvas):not(.landing-noise) {
+.landing > *:not(.forge-canvas):not(.landing-noise):not(.cursor-glow) {
   position: relative;
   z-index: 2;
 }
@@ -1103,16 +1103,16 @@ tbody tr:hover {
   font: 700 8px 'JetBrains Mono';
   color: #ff6546;
 }
-.dna-summary {
+.profile-summary {
   display: flex;
   align-items: center;
   gap: 22px;
 }
-.dna-summary > strong {
+.profile-summary > strong {
   font-size: 58px;
   color: #ff5437;
 }
-.dna-summary p {
+.profile-summary p {
   margin: 4px 0;
 }
 .mini-card {
@@ -1134,7 +1134,7 @@ tbody tr:hover {
   grid-template-columns: 0.8fr 1.2fr;
   gap: 14px;
 }
-.dna-layout {
+.profile-layout {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 14px;
@@ -1142,7 +1142,7 @@ tbody tr:hover {
 .radar-panel {
   min-height: 430px;
 }
-.dna-radar {
+.profile-radar {
   width: 100%;
   height: 390px;
 }
@@ -1162,7 +1162,7 @@ tbody tr:hover {
   color: #aaaeb5;
   background: #080a0d;
 }
-.dna-metrics {
+.profile-metrics {
   grid-template-columns: repeat(3, 1fr);
 }
 .profile-hero {
@@ -1478,7 +1478,7 @@ tbody tr:hover {
   }
   .two-col,
   .solve-grid,
-  .dna-layout,
+  .profile-layout,
   .sql-layout,
   .docs-grid {
     grid-template-columns: 1fr;
@@ -1544,13 +1544,13 @@ tbody tr:hover {
   .feature-links {
     grid-template-columns: 1fr;
   }
-  .dna-metrics {
+  .profile-metrics {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (max-width: 520px) {
   .metric-grid,
-  .dna-metrics,
+  .profile-metrics,
   .card-grid,
   .search-grid {
     grid-template-columns: 1fr;
@@ -1630,3 +1630,925 @@ tbody tr:hover {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* SQL Battle overhaul — PATCH-015 */
+.sql-arena-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.sql-arena-rules span,
+.sql-order-rule {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  background: #080a0d;
+  font: 700 8px 'JetBrains Mono';
+  letter-spacing: 0.06em;
+  color: #8d929b;
+}
+
+.sql-arena-grid {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.sql-challenge-panel {
+  position: sticky;
+  top: 82px;
+  max-height: calc(100vh - 105px);
+  overflow: hidden;
+}
+
+.sql-challenge-list {
+  display: grid;
+  gap: 8px;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.sql-challenge-card {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #080a0d;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.sql-challenge-card:hover {
+  border-color: #343941;
+  transform: translateY(-1px);
+}
+
+.sql-challenge-card.selected {
+  border-color: rgba(255, 82, 48, 0.48);
+  background: linear-gradient(110deg, rgba(255, 62, 32, 0.07), rgba(255, 255, 255, 0.012));
+}
+
+.sql-challenge-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sql-challenge-card p {
+  display: -webkit-box;
+  margin: 8px 0 11px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 10px;
+  line-height: 1.55;
+  color: #757a83;
+}
+
+.difficulty-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #9197a0;
+  box-shadow: 0 0 9px rgba(145, 151, 160, 0.35);
+}
+
+.difficulty-dot.easy {
+  background: var(--green);
+  box-shadow: 0 0 9px rgba(73, 224, 149, 0.35);
+}
+
+.difficulty-dot.medium {
+  background: #ff9b45;
+  box-shadow: 0 0 9px rgba(255, 155, 69, 0.35);
+}
+
+.difficulty-dot.hard {
+  background: #ff5138;
+  box-shadow: 0 0 9px rgba(255, 81, 56, 0.35);
+}
+
+.sql-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sql-card-meta span {
+  padding: 4px 6px;
+  border: 1px solid #20242a;
+  font: 600 7px 'JetBrains Mono';
+  color: #777c84;
+}
+
+.sql-practice-panel {
+  min-width: 0;
+}
+
+.sql-max-score {
+  font: 700 17px 'JetBrains Mono';
+  color: #ff6546;
+}
+
+.sql-description {
+  max-width: 950px;
+  margin: 4px 0 14px;
+  white-space: pre-wrap;
+}
+
+.sql-sandbox-note {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #22262d;
+  border-left: 2px solid #ff6041;
+  background: #07090c;
+}
+
+.sql-sandbox-note b {
+  font-size: 10px;
+}
+
+.sql-sandbox-note span {
+  font: 600 9px 'JetBrains Mono';
+  color: #9499a2;
+}
+
+.sql-sandbox-note small {
+  color: #626771;
+}
+
+.sql-editor-large {
+  min-height: 265px;
+}
+
+.sql-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.sql-editor-actions > span,
+.sql-editor-actions > div span {
+  color: #686d76;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.sql-editor-actions > div b,
+.sql-editor-actions > div span {
+  display: block;
+}
+
+.sql-result-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #080a0d;
+}
+
+.sql-result-card.success {
+  border-color: rgba(73, 224, 149, 0.32);
+  background: linear-gradient(105deg, rgba(73, 224, 149, 0.055), #080a0d 48%);
+}
+
+.sql-result-card.danger {
+  border-color: rgba(255, 84, 51, 0.3);
+  background: linear-gradient(105deg, rgba(255, 84, 51, 0.055), #080a0d 48%);
+}
+
+.sql-result-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sql-result-main h3 {
+  margin: 3px 0 4px;
+}
+
+.sql-result-main p {
+  margin: 0;
+}
+
+.sql-result-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(88px, 1fr));
+  gap: 7px;
+}
+
+.sql-result-metrics > div {
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: #06080b;
+}
+
+.sql-result-metrics span,
+.sql-attempt-metric span,
+.sql-battle-max span {
+  display: block;
+  font: 700 7px 'JetBrains Mono';
+  letter-spacing: 0.08em;
+  color: #666b74;
+}
+
+.sql-result-metrics strong,
+.sql-attempt-metric strong {
+  display: block;
+  margin-top: 5px;
+  font: 700 13px 'JetBrains Mono';
+}
+
+.sql-result-table {
+  margin-top: 10px;
+  max-height: 330px;
+  overflow: auto;
+}
+
+.sql-matchmaking-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.sql-opponent-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sql-opponent-list {
+  display: grid;
+  gap: 7px;
+  max-height: 440px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.sql-opponent-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 26px;
+  gap: 11px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #080a0d;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sql-opponent-card:hover {
+  border-color: #343941;
+}
+
+.sql-opponent-card.selected {
+  border-color: rgba(255, 83, 49, 0.5);
+  background: rgba(255, 63, 32, 0.045);
+}
+
+.sql-opponent-avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #2a2f36;
+  border-radius: 50%;
+  background: #06080b;
+  font: 700 11px 'JetBrains Mono';
+  color: #ff6546;
+}
+
+.sql-opponent-info {
+  min-width: 0;
+}
+
+.sql-opponent-info > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sql-opponent-info > small {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #6d727b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-active-battle {
+  padding: 3px 5px;
+  border: 1px solid rgba(73, 224, 149, 0.25);
+  font: 700 6px 'JetBrains Mono';
+  color: var(--green);
+}
+
+.sql-opponent-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sql-opponent-stats span {
+  font-size: 8px;
+  color: #696e77;
+}
+
+.sql-opponent-stats b {
+  font: 700 9px 'JetBrains Mono';
+  color: #aeb2ba;
+}
+
+.sql-select-mark {
+  font: 700 15px 'JetBrains Mono';
+  color: #555b64;
+  text-align: right;
+}
+
+.sql-opponent-card.selected .sql-select-mark {
+  color: #ff6546;
+}
+
+.sql-opponent-empty {
+  display: grid;
+  gap: 5px;
+  padding: 30px 12px;
+  text-align: center;
+  color: #686d76;
+}
+
+.sql-opponent-empty b {
+  color: #a4a8b0;
+}
+
+.sql-battle-launch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.sql-match-summary b,
+.sql-match-summary small {
+  display: block;
+}
+
+.sql-match-summary b {
+  margin-top: 4px;
+}
+
+.sql-match-summary small {
+  margin-top: 3px;
+  color: #686d76;
+}
+
+.sql-launch-button {
+  min-width: 190px;
+}
+
+.sql-leaderboard-list {
+  display: grid;
+}
+
+.sql-leaderboard-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.sql-leaderboard-row > strong {
+  font: 700 11px 'JetBrains Mono';
+  color: #ff6546;
+}
+
+.sql-leaderboard-row div b,
+.sql-leaderboard-row div small {
+  display: block;
+}
+
+.sql-leaderboard-row div small {
+  margin-top: 3px;
+  color: #666b74;
+}
+
+.sql-leaderboard-score {
+  text-align: right;
+}
+
+.sql-leaderboard-score b {
+  font: 700 15px 'JetBrains Mono';
+}
+
+.sql-recent-panel {
+  margin-top: 14px;
+}
+
+.sql-battle-history {
+  display: grid;
+  gap: 7px;
+}
+
+.sql-history-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 90px;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #080a0d;
+}
+
+.sql-history-card:hover {
+  border-color: #333840;
+}
+
+.sql-history-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sql-history-card > div:first-child div {
+  min-width: 0;
+}
+
+.sql-history-card b,
+.sql-history-card small {
+  display: block;
+}
+
+.sql-history-card small {
+  margin-top: 3px;
+  color: #6a6f78;
+}
+
+.sql-history-score {
+  text-align: right;
+}
+
+.sql-history-score strong {
+  font: 700 15px 'JetBrains Mono';
+}
+
+/* Battle detail */
+.sql-battle-status {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 15px;
+  align-items: center;
+  margin: 14px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #080a0d;
+}
+
+.sql-battle-status.active {
+  border-color: rgba(255, 94, 55, 0.27);
+  background: linear-gradient(105deg, rgba(255, 66, 35, 0.055), #080a0d 42%);
+}
+
+.sql-battle-status.success {
+  border-color: rgba(73, 224, 149, 0.3);
+  background: linear-gradient(105deg, rgba(73, 224, 149, 0.055), #080a0d 42%);
+}
+
+.sql-battle-status.danger {
+  border-color: rgba(255, 74, 47, 0.3);
+}
+
+.sql-battle-status.info {
+  border-color: rgba(72, 196, 255, 0.3);
+}
+
+.sql-battle-status-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid #2a2f36;
+  border-radius: 50%;
+  background: #06080b;
+  font: 700 20px 'JetBrains Mono';
+  color: #ff6546;
+}
+
+.sql-battle-status h2 {
+  margin: 4px 0;
+}
+
+.sql-battle-status p {
+  margin: 0;
+}
+
+.sql-battle-max {
+  min-width: 100px;
+  padding-left: 15px;
+  border-left: 1px solid var(--line);
+  text-align: right;
+}
+
+.sql-battle-max strong {
+  display: block;
+  margin-top: 4px;
+  font: 700 22px 'JetBrains Mono';
+}
+
+.sql-versus-board {
+  display: grid;
+  grid-template-columns: 1fr 130px 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sql-player-score {
+  position: relative;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: #090b0f;
+  text-align: center;
+}
+
+.sql-player-score.me {
+  border-color: rgba(255, 83, 48, 0.32);
+}
+
+.sql-player-score.leader {
+  background: linear-gradient(180deg, rgba(255, 91, 50, 0.045), #090b0f 55%);
+}
+
+.sql-player-score > span {
+  display: block;
+  font: 700 9px 'JetBrains Mono';
+  color: #858a93;
+}
+
+.sql-player-score > strong {
+  display: block;
+  margin: 7px 0;
+  font: 700 42px 'JetBrains Mono';
+}
+
+.sql-player-score > small {
+  color: #666b74;
+}
+
+.sql-accepted-marker,
+.sql-pending-marker {
+  display: block;
+  margin-top: 12px;
+  font: 700 7px 'JetBrains Mono';
+  letter-spacing: 0.07em;
+}
+
+.sql-accepted-marker {
+  color: var(--green);
+}
+
+.sql-pending-marker {
+  color: #767b84;
+}
+
+.sql-versus-mark {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: #07090c;
+  text-align: center;
+}
+
+.sql-versus-mark span {
+  font: 700 19px 'JetBrains Mono';
+  color: #ff6041;
+}
+
+.sql-versus-mark small {
+  max-width: 90px;
+  color: #5f646d;
+}
+
+.sql-battle-workspace {
+  margin-bottom: 14px;
+}
+
+.sql-complete-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.sql-complete-actions h2 {
+  margin: 4px 0;
+}
+
+.sql-complete-actions p {
+  margin: 0;
+}
+
+.sql-attempt-list {
+  display: grid;
+  gap: 6px;
+}
+
+.sql-attempt-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) 100px repeat(3, minmax(70px, 0.45fr));
+  gap: 10px;
+  align-items: center;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background: #080a0d;
+}
+
+.sql-attempt-row.mine {
+  border-left: 2px solid #ff6041;
+}
+
+.sql-attempt-row.latest {
+  background: rgba(255, 65, 35, 0.025);
+}
+
+.sql-attempt-user span,
+.sql-attempt-user b,
+.sql-attempt-user small {
+  display: block;
+}
+
+.sql-attempt-user span {
+  font: 700 7px 'JetBrains Mono';
+  letter-spacing: 0.08em;
+  color: #ff6546;
+}
+
+.sql-attempt-user b {
+  margin-top: 3px;
+}
+
+.sql-attempt-user small {
+  margin-top: 3px;
+  color: #5f646d;
+}
+
+.sql-attempt-metric {
+  text-align: right;
+}
+
+@media (max-width: 1100px) {
+  .sql-matchmaking-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-result-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .sql-arena-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-challenge-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .sql-challenge-list {
+    grid-template-columns: repeat(2, 1fr);
+    max-height: none;
+  }
+
+  .sql-versus-board {
+    grid-template-columns: 1fr 80px 1fr;
+  }
+
+  .sql-attempt-row {
+    grid-template-columns: minmax(130px, 1fr) 90px 70px 70px;
+  }
+
+  .sql-attempt-row .sql-attempt-metric:last-of-type {
+    display: none;
+  }
+}
+
+@media (max-width: 650px) {
+  .sql-challenge-list {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-editor-actions,
+  .sql-battle-launch,
+  .sql-complete-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sql-launch-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .sql-opponent-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-result-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-history-card {
+    grid-template-columns: 1fr auto;
+  }
+
+  .sql-history-card .pill {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .sql-versus-board {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-versus-mark {
+    min-height: 58px;
+  }
+
+  .sql-battle-status {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .sql-battle-max {
+    grid-column: 1 / -1;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    text-align: left;
+  }
+
+  .sql-attempt-row {
+    grid-template-columns: 1fr 90px;
+  }
+
+  .sql-attempt-metric {
+    text-align: left;
+  }
+
+  .sql-attempt-row .sql-attempt-metric:nth-of-type(2),
+  .sql-attempt-row .sql-attempt-metric:nth-of-type(3) {
+    display: none;
+  }
+}
+/* End SQL Battle overhaul — PATCH-015 */
+
+/* Original-style landing interaction — PATCH-018 */
+.forge-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.78;
+  mix-blend-mode: normal;
+  filter: none;
+}
+
+.cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 420px;
+  height: 420px;
+  z-index: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 47, 24, 0.105),
+    rgba(255, 47, 24, 0.025) 36%,
+    transparent 70%
+  );
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.landing-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+  background-size: auto;
+  mask-image: none;
+  mix-blend-mode: soft-light;
+}
+
+.landing > *:not(.forge-canvas):not(.landing-noise):not(.cursor-glow) {
+  position: relative;
+  z-index: 2;
+}
+
+[data-parallax],
+.magnetic,
+.tilt-card,
+#forgeCore {
+  will-change: transform;
+}
+
+.magnetic {
+  transition:
+    transform 0.16s ease-out,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.tilt-card {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.16s ease-out,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.terminal pre code {
+  font: inherit;
+  color: inherit;
+}
+
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-glow {
+    display: none;
+  }
+
+  [data-parallax],
+  .magnetic,
+  .tilt-card,
+  #forgeCore {
+    transform: none !important;
+  }
+}
+/* End Original-style landing interaction — PATCH-018 */
+
+/* Dashboard Performance Profile repair — PATCH-019B */
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-summary > strong {
+  flex: 0 0 auto;
+  font: 700 34px 'JetBrains Mono';
+  color: #ff6546;
+}
+
+.profile-summary > div {
+  min-width: 0;
+}
+
+.profile-summary > div b {
+  display: block;
+}
+
+.profile-summary > div p {
+  margin: 5px 0 0;
+  color: #6f747d;
+}
+/* End Dashboard Performance Profile repair — PATCH-019B */

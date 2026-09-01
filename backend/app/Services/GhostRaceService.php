@@ -168,14 +168,36 @@ final class GhostRaceService
 
     public function virtualElapsed(array $race): int
     {
-        $started = strtotime((string) $race['started_at']);
+        $started = strtotime((string) ($race['started_at'] ?? ''));
+
         if ($started === false) {
+            return 0;
+        }
+
+        $speed = max(1, (int) ($race['playback_speed'] ?? 1));
+        $result = (string) ($race['result'] ?? 'active');
+
+        // Once a race finishes, its clock must never move again.
+        if ($result !== 'active') {
+            if (
+                array_key_exists('challenger_time', $race)
+                && $race['challenger_time'] !== null
+            ) {
+                return max(0, (int) $race['challenger_time']);
+            }
+
+            $finished = strtotime((string) ($race['finished_at'] ?? ''));
+
+            if ($finished !== false) {
+                return max(0, $finished - $started) * $speed;
+            }
+
             return 0;
         }
 
         $realSeconds = max(0, time() - $started);
 
-        return $realSeconds * max(1, (int) $race['playback_speed']);
+        return $realSeconds * $speed;
     }
 
     public function submit(string $raceId, string $challengerId, string $sourceCode, string $language): array

@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class CodeDnaService
+final class PerformanceProfileService
 {
     public function calculate(string $userId): array
     {
@@ -63,7 +63,7 @@ final class CodeDnaService
         }
 
         /*
-         * Preserve the original Code DNA scoring semantics while avoiding a
+         * Preserve the original Performance Profile scoring semantics while avoiding a
          * full problem_sessions -> PHP transfer. We aggregate the exact
          * per-session rounded speed and difficulty scores inside MySQL.
          */
@@ -149,21 +149,21 @@ final class CodeDnaService
             $solvedProblems += (int) $row['solved'];
 
             $accuracy = $row['submissions'] > 0
-                ? CodeDnaCalculator::clamp(($row['accepted'] / $row['submissions']) * 100)
+                ? PerformanceProfileCalculator::clamp(($row['accepted'] / $row['submissions']) * 100)
                 : 0;
 
             $speed = $row['session_count'] > 0
-                ? CodeDnaCalculator::clamp($row['speed_sum'] / $row['session_count'])
+                ? PerformanceProfileCalculator::clamp($row['speed_sum'] / $row['session_count'])
                 : 0;
 
             $difficulty = $row['session_count'] > 0
-                ? CodeDnaCalculator::clamp($row['difficulty_sum'] / $row['session_count'])
+                ? PerformanceProfileCalculator::clamp($row['difficulty_sum'] / $row['session_count'])
                 : 0;
 
-            $recency = CodeDnaCalculator::recencyScore($row['last_solved_at']);
+            $recency = PerformanceProfileCalculator::recencyScore($row['last_solved_at']);
 
             $topicScores[$topic] = [
-                'score' => CodeDnaCalculator::topicScore($accuracy, $difficulty, $speed, $recency),
+                'score' => PerformanceProfileCalculator::topicScore($accuracy, $difficulty, $speed, $recency),
                 'accuracy' => $accuracy,
                 'speed' => $speed,
                 'difficulty' => $difficulty,
@@ -179,15 +179,15 @@ final class CodeDnaService
         );
 
         $accuracy = $total > 0
-            ? CodeDnaCalculator::clamp(($accepted / $total) * 100)
+            ? PerformanceProfileCalculator::clamp(($accepted / $total) * 100)
             : 0;
 
         $speed = $globalSessionCount > 0
-            ? CodeDnaCalculator::clamp($globalSpeedSum / $globalSessionCount)
+            ? PerformanceProfileCalculator::clamp($globalSpeedSum / $globalSessionCount)
             : 0;
 
         $challenge = $globalSessionCount > 0
-            ? CodeDnaCalculator::clamp($globalDifficultySum / $globalSessionCount)
+            ? PerformanceProfileCalculator::clamp($globalDifficultySum / $globalSessionCount)
             : 0;
 
         $solvedTopics = count(
@@ -195,10 +195,10 @@ final class CodeDnaService
         );
 
         $versatility = count($topicScores) > 0
-            ? CodeDnaCalculator::clamp(($solvedTopics / count($topicScores)) * 100)
+            ? PerformanceProfileCalculator::clamp(($solvedTopics / count($topicScores)) * 100)
             : 0;
 
-        $consistency = CodeDnaCalculator::consistency($recent);
+        $consistency = PerformanceProfileCalculator::consistency($recent);
 
         $attemptedScores = array_column(
             array_filter($topicScores, fn (array $row) => $row['attempted'] > 0),
@@ -209,7 +209,7 @@ final class CodeDnaService
             ? array_sum($attemptedScores) / count($attemptedScores)
             : 0;
 
-        $problemSolving = CodeDnaCalculator::clamp(
+        $problemSolving = PerformanceProfileCalculator::clamp(
             $averageTopicScore * 0.45 +
             $accuracy * 0.30 +
             $challenge * 0.25
@@ -245,8 +245,8 @@ final class CodeDnaService
             'user' => $user->toArray(),
             'dimensions' => $dimensions,
             'dimension_labels' => $labels,
-            'overall' => CodeDnaCalculator::clamp(array_sum($dimensions) / count($dimensions)),
-            'archetype' => CodeDnaCalculator::archetype($dimensions),
+            'overall' => PerformanceProfileCalculator::clamp(array_sum($dimensions) / count($dimensions)),
+            'archetype' => PerformanceProfileCalculator::archetype($dimensions),
             'topics' => $topicScores,
             'strengths' => array_map(fn (string $key) => $labels[$key], $strengths),
             'growth_areas' => array_map(fn (string $key) => $labels[$key], $growthAreas),

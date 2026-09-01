@@ -28,3 +28,5 @@ tools/composer/
 .DS_Store
 Thumbs.db
 PATCH-*.ps1
+.env.example
+legacy-php/

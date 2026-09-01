@@ -26,7 +26,10 @@
   <div>
     <span class="eyebrow">PRACTICE LIBRARY</span>
     <h1>Problems</h1>
-    <p>Every attempt becomes part of Code DNA and can later become a Ghost Race timeline.</p>
+    <p>
+      Every attempt contributes to your Performance Profile and can later become a Ghost Race
+      timeline.
+    </p>
   </div>
 </div>
 <form class="filter-bar" on:submit|preventDefault={load}>

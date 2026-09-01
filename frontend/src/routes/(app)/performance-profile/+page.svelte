@@ -3,7 +3,7 @@
   import { page } from '$app/stores';
   import { request } from '$lib/api';
   import Loading from '$lib/components/Loading.svelte';
-  import DnaRadar from '$lib/components/DnaRadar.svelte';
+  import PerformanceRadar from '$lib/components/PerformanceRadar.svelte';
 
   type DnaTopic = {
     score: number;
@@ -41,7 +41,7 @@
     };
   };
 
-  let dna: DnaResponse | null = null;
+  let PROFILE: DnaResponse | null = null;
   let error = '';
   let loading = true;
   let controller: AbortController | null = null;
@@ -49,8 +49,8 @@
   let dimensionEntries: Array<[string, number]> = [];
   let topicEntries: Array<[string, DnaTopic]> = [];
 
-  $: dimensionEntries = dna ? Object.entries(dna.dimensions) : [];
-  $: topicEntries = dna ? Object.entries(dna.topics) : [];
+  $: dimensionEntries = PROFILE ? Object.entries(PROFILE.dimensions) : [];
+  $: topicEntries = PROFILE ? Object.entries(PROFILE.topics) : [];
 
   async function loadDna() {
     controller?.abort();
@@ -63,17 +63,19 @@
 
     try {
       const user = $page.url.searchParams.get('user');
-      const path = user ? `/api/code-dna/${encodeURIComponent(user)}` : '/api/code-dna';
+      const path = user
+        ? `/api/performance-profile/${encodeURIComponent(user)}`
+        : '/api/performance-profile';
 
-      dna = await request<DnaResponse>(path, {
+      PROFILE = await request<DnaResponse>(path, {
         signal: controller.signal,
       });
     } catch (e: any) {
       if (e?.name === 'AbortError') {
         error =
-          'Code DNA took too long to respond. The request was stopped so the page stays usable.';
+          'Performance Profile took too long to respond. The request was stopped so the page stays usable.';
       } else {
-        error = e?.message || 'Could not load Code DNA.';
+        error = e?.message || 'Could not load Performance Profile.';
       }
     } finally {
       window.clearTimeout(timeout);
@@ -91,7 +93,7 @@
 </script>
 
 <svelte:head>
-  <title>Code DNA · CodeForge</title>
+  <title>Performance Profile · CodeForge</title>
 </svelte:head>
 
 {#if loading}
@@ -99,51 +101,51 @@
 {:else if error}
   <section class="panel">
     <div class="alert error">{error}</div>
-    <button class="btn primary" on:click={loadDna}>Retry Code DNA →</button>
+    <button class="btn primary" on:click={loadDna}>Retry Performance Profile →</button>
   </section>
-{:else if dna}
+{:else if PROFILE}
   <div class="page-head">
     <div>
       <span class="eyebrow">PERFORMANCE INTELLIGENCE</span>
-      <h1>Code DNA</h1>
-      <p>{dna.user.username} · {dna.user.rank} · Rating {dna.user.rating}</p>
+      <h1>Performance Profile</h1>
+      <p>{PROFILE.user.username} · {PROFILE.user.rank} · Rating {PROFILE.user.rating}</p>
     </div>
-    <div class="dna-score-big">
-      <strong>{dna.overall}</strong>
+    <div class="profile-score-big">
+      <strong>{PROFILE.overall}</strong>
       <span>/100</span>
     </div>
   </div>
 
-  <section class="dna-layout">
+  <section class="profile-layout">
     <div class="panel radar-panel">
-      <DnaRadar dimensions={dna.dimensions} labels={dna.dimension_labels} />
+      <PerformanceRadar dimensions={PROFILE.dimensions} labels={PROFILE.dimension_labels} />
     </div>
 
     <div class="panel archetype">
       <span class="eyebrow">ARCHETYPE</span>
-      <h2>{dna.archetype.name}</h2>
-      <p>{dna.archetype.tagline}</p>
+      <h2>{PROFILE.archetype.name}</h2>
+      <p>{PROFILE.archetype.tagline}</p>
 
       <h3>Strengths</h3>
       <div class="tag-row">
-        {#each dna.strengths as strength}
+        {#each PROFILE.strengths as strength}
           <span>{strength}</span>
         {/each}
       </div>
 
       <h3>Growth areas</h3>
       <div class="tag-row">
-        {#each dna.growth_areas as area}
+        {#each PROFILE.growth_areas as area}
           <span>{area}</span>
         {/each}
       </div>
     </div>
   </section>
 
-  <section class="metric-grid dna-metrics">
+  <section class="metric-grid profile-metrics">
     {#each dimensionEntries as [key, value]}
       <div class="metric">
-        <small>{dna.dimension_labels[key] ?? key}</small>
+        <small>{PROFILE.dimension_labels[key] ?? key}</small>
         <strong>{value}%</strong>
         <div class="progress">
           <span style={`width:${value}%`}></span>
@@ -155,7 +157,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Topic mastery</h2>
-      <span>{dna.stats.solved_topics} active topics</span>
+      <span>{PROFILE.stats.solved_topics} active topics</span>
     </div>
 
     <div class="table-wrap">

@@ -18,15 +18,15 @@ function check(bool $condition, string $name): void
     }
 }
 
-$api = file_get_contents($root . '/routes/api.php');
-$web = file_get_contents($root . '/routes/web.php');
-$bootstrap = file_get_contents($root . '/bootstrap/app.php');
-$problemController = file_get_contents($root . '/app/Http/Controllers/ProblemController.php');
-$migration = file_get_contents($root . '/database/migrations/2026_09_01_000100_adopt_or_create_codeforge_schema.php');
+$api = file_get_contents($root.'/routes/api.php');
+$web = file_get_contents($root.'/routes/web.php');
+$bootstrap = file_get_contents($root.'/bootstrap/app.php');
+$problemController = file_get_contents($root.'/app/Http/Controllers/ProblemController.php');
+$migration = file_get_contents($root.'/database/migrations/2026_09_01_000100_adopt_or_create_codeforge_schema.php');
 
 foreach ([
-    '/dashboard', '/problems', '/code-dna', '/profiles/{id}', '/rivalry', '/universities', '/search',
-    '/contests', '/ghost-races/options', '/sql/challenges', '/database/users', '/sql-lab'
+    '/dashboard', '/problems', '/performance-profile', '/profiles/{id}', '/rivalry', '/universities', '/search',
+    '/contests', '/ghost-races/options', '/sql/challenges', '/database/users', '/sql-lab',
 ] as $route) {
     check(str_contains($api, $route), "API route {$route}");
 }
@@ -48,27 +48,27 @@ check(
 foreach ([
     'users', 'universities', 'problems', 'submissions', 'problem_sessions', 'contests',
     'ghost_races', 'sql_challenges', 'sql_battles', 'sql_attempts', 'activity_logs',
-    'arena_users', 'arena_problems', 'arena_submissions', 'topicstats'
+    'arena_users', 'arena_problems', 'arena_submissions', 'topicstats',
 ] as $table) {
     check(str_contains($migration, "hasTable('{$table}')"), "schema covers {$table}");
 }
 
-require_once $root . '/app/Services/CodeDnaCalculator.php';
-require_once $root . '/app/Services/PrototypeJudgeService.php';
-require_once $root . '/app/Services/SqlJudgeService.php';
+require_once $root.'/app/Services/PerformanceProfileCalculator.php';
+require_once $root.'/app/Services/PrototypeJudgeService.php';
+require_once $root.'/app/Services/SqlJudgeService.php';
 
-use App\Services\CodeDnaCalculator;
+use App\Services\PerformanceProfileCalculator;
 use App\Services\PrototypeJudgeService;
 use App\Services\SqlJudgeService;
 
-check(CodeDnaCalculator::speedScore('Easy', 180) === 82, 'Code DNA speed formula');
-check(CodeDnaCalculator::difficultyScore('Hard') === 100, 'Code DNA hard difficulty score');
-check(CodeDnaCalculator::clamp(120) === 100, 'Code DNA clamp upper bound');
-check(CodeDnaCalculator::archetype(['accuracy'=>90,'speed'=>60,'challenge'=>60,'versatility'=>50,'consistency'=>70])['name'] === 'Precision Solver', 'Code DNA archetype');
+check(PerformanceProfileCalculator::speedScore('Easy', 180) === 82, 'Performance Profile speed formula');
+check(PerformanceProfileCalculator::difficultyScore('Hard') === 100, 'Performance Profile hard difficulty score');
+check(PerformanceProfileCalculator::clamp(120) === 100, 'Performance Profile clamp upper bound');
+check(PerformanceProfileCalculator::archetype(['accuracy' => 90, 'speed' => 60, 'challenge' => 60, 'versatility' => 50, 'consistency' => 70])['name'] === 'Precision Solver', 'Performance Profile archetype');
 
-$judge = new PrototypeJudgeService();
+$judge = new PrototypeJudgeService;
 $accepted = $judge->evaluate("#include <bits/stdc++.h>\nint main(){ return 0; }", 'C++', 'Easy');
-check(in_array($accepted['verdict'], ['AC','WA','TLE','CE'], true), 'prototype judge returns known verdict');
+check(in_array($accepted['verdict'], ['AC', 'WA', 'TLE', 'CE'], true), 'prototype judge returns known verdict');
 check(isset($accepted['runtime_ms'], $accepted['memory_kb']), 'prototype judge returns performance metadata');
 
 $ref = new ReflectionClass(SqlJudgeService::class);
@@ -76,11 +76,11 @@ $sql = $ref->newInstanceWithoutConstructor();
 [$ok] = $sql->validate('SELECT username FROM arena_users');
 check($ok, 'SQL sandbox allows arena SELECT');
 [$ok] = $sql->validate('DROP TABLE arena_users');
-check(!$ok, 'SQL sandbox blocks destructive SQL');
+check(! $ok, 'SQL sandbox blocks destructive SQL');
 [$ok] = $sql->validate('SELECT * FROM users');
-check(!$ok, 'SQL sandbox blocks production users table');
+check(! $ok, 'SQL sandbox blocks production users table');
 [$ok] = $sql->validate('SELECT * FROM arena_users; SELECT * FROM arena_problems');
-check(!$ok, 'SQL sandbox blocks multiple statements');
+check(! $ok, 'SQL sandbox blocks multiple statements');
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

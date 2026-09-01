@@ -30,7 +30,7 @@
     <div class="auth-copy">
       <span class="eyebrow live"><i></i>ACCESS TERMINAL</span>
       <h1>GET<br />BACK<br /><b>IN.</b></h1>
-      <p>Continue your performance history, DNA profile, Ghost Races and SQL battles.</p>
+      <p>Continue your performance history, Performance Profile, Ghost Races and SQL battles.</p>
     </div>
   </section>
   <section class="auth-form-wrap">

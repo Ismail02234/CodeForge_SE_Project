@@ -118,6 +118,6 @@ class ContestController extends Controller
             ]);
         });
 
-        return response()->json(['id' => $id],201);
+        return response()->json(['id' => $id], 201);
     }
 }

@@ -10,7 +10,7 @@
     ['/contests', 'Contests', '◆'],
     ['/rivalry', 'Rivalry', '⚡'],
     ['/universities', 'Universities', '⌂'],
-    ['/code-dna', 'Code DNA', '⬡'],
+    ['/performance-profile', 'Performance Profile', '⬡'],
     ['/ghost-race', 'Ghost Race', '◉'],
     ['/sql-battle', 'SQL Battle', '▦'],
     ['/database', 'Database', '▤'],

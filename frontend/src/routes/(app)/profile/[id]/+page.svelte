@@ -36,10 +36,9 @@
     </div>
   </section>
   <div class="page-actions">
-    <a class="btn primary" href={`/code-dna?user=${data.user.id}`}>View Code DNA</a><a
-      class="btn ghost"
-      href={`/rivalry?a=${data.user.id}`}>Compare</a
-    >
+    <a class="btn primary" href={`/performance-profile?user=${data.user.id}`}
+      >View Performance Profile</a
+    ><a class="btn ghost" href={`/rivalry?a=${data.user.id}`}>Compare</a>
   </div>
   <section class="two-col">
     <div class="panel">

@@ -132,4 +132,5 @@
   });
 </script>
 
-<canvas class="dna-radar" bind:this={canvas} aria-label="Code DNA radar chart"></canvas>
+<canvas class="profile-radar" bind:this={canvas} aria-label="Performance Profile radar chart"
+></canvas>

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-final class CodeDnaCalculator
+final class PerformanceProfileCalculator
 {
     public static function clamp(float $value): int
     {

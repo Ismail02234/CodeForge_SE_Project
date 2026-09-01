@@ -17,14 +17,14 @@ const expectedRoutes = [
   '/universities/compare',
   '/search',
   '/profile/[id]',
-  '/code-dna',
+  '/performance-profile',
   '/ghost-race',
   '/ghost-race/[id]',
   '/sql-battle',
   '/sql-battle/[id]',
   '/database',
   '/sql-lab',
-  '/how-it-works'
+  '/how-it-works',
 ];
 
 const routeRoot = path.join(root, 'src', 'routes');
@@ -34,7 +34,7 @@ function routeExists(route) {
 
   const candidates = [
     path.join(routeRoot, clean, '+page.svelte'),
-    path.join(routeRoot, '(app)', clean, '+page.svelte')
+    path.join(routeRoot, '(app)', clean, '+page.svelte'),
   ];
 
   return candidates.some((candidate) => fs.existsSync(candidate));
@@ -58,32 +58,17 @@ for (const route of expectedRoutes) {
 
 const api = fs.readFileSync(path.join(root, 'src', 'lib', 'api.ts'), 'utf8');
 
-failed += check(
-  /credentials\s*:\s*['"]include['"]/.test(api),
-  "API marker credentials: 'include'"
-);
+failed += check(/credentials\s*:\s*['"]include['"]/.test(api), "API marker credentials: 'include'");
 
-failed += check(
-  /X-XSRF-TOKEN/.test(api),
-  'API marker X-XSRF-TOKEN'
-);
+failed += check(/X-XSRF-TOKEN/.test(api), 'API marker X-XSRF-TOKEN');
 
-failed += check(
-  /sanctum\/csrf-cookie/.test(api),
-  'API marker sanctum/csrf-cookie'
-);
+failed += check(/sanctum\/csrf-cookie/.test(api), 'API marker sanctum/csrf-cookie');
 
 const css = fs.readFileSync(path.join(root, 'src', 'app.css'), 'utf8');
 
-failed += check(
-  /Space Grotesk/.test(css),
-  'UI marker Space Grotesk'
-);
+failed += check(/Space Grotesk/.test(css), 'UI marker Space Grotesk');
 
-failed += check(
-  /JetBrains Mono/.test(css),
-  'UI marker JetBrains Mono'
-);
+failed += check(/JetBrains Mono/.test(css), 'UI marker JetBrains Mono');
 
 failed += check(
   /overscroll-behavior-y\s*:\s*contain\b/.test(css),

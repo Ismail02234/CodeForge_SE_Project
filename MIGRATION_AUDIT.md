@@ -17,7 +17,7 @@
 | `university_compare.php` | `/universities/compare` | compare API |
 | `search.php` | `/search` | `GET /api/search` |
 | `profile.php` | `/profile/[id]` | profile API |
-| `code_dna.php` | `/code-dna` | `CodeDnaService` |
+| `performance_profile.php` | `/performance-profile` | `PerformanceProfileService` |
 | `ghost_race.php` | `/ghost-race` | Ghost Race options/history |
 | `ghost_race_play.php` | `/ghost-race/[id]` | race state/submit/forfeit |
 | `sql_battle.php` | `/sql-battle` | SQL challenge/battle API |

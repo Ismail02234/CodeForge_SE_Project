@@ -27,14 +27,17 @@ final class SqlJudgeService
     public function validate(string $query): array
     {
         $query = trim($query);
+
         if ($query === '') {
             return [false, 'Write a SELECT query before submitting.'];
         }
+
         if (strlen($query) > self::MAX_QUERY_LENGTH) {
             return [false, 'Query is too long for the arena.'];
         }
 
         $sql = preg_replace('/;\s*$/', '', $query) ?? $query;
+
         if (str_contains($sql, ';')) {
             return [false, 'Only one SQL statement is allowed.'];
         }
@@ -56,12 +59,41 @@ final class SqlJudgeService
         }
 
         $blocked = [
-            'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE', 'REPLACE',
-            'GRANT', 'REVOKE', 'CALL', 'PROCEDURE', 'FUNCTION', 'TRIGGER', 'EVENT',
-            'LOAD_FILE', 'LOAD DATA', 'OUTFILE', 'DUMPFILE', 'INFILE', 'SLEEP', 'BENCHMARK',
-            'INFORMATION_SCHEMA', 'PERFORMANCE_SCHEMA', 'MYSQL.', 'SYS.',
-            'GET_LOCK', 'RELEASE_LOCK', 'IS_FREE_LOCK', 'CURRENT_USER', 'SESSION_USER',
-            'SYSTEM_USER', 'DATABASE(', 'SCHEMA(', 'VERSION(',
+            'INSERT',
+            'UPDATE',
+            'DELETE',
+            'DROP',
+            'ALTER',
+            'CREATE',
+            'TRUNCATE',
+            'REPLACE',
+            'GRANT',
+            'REVOKE',
+            'CALL',
+            'PROCEDURE',
+            'FUNCTION',
+            'TRIGGER',
+            'EVENT',
+            'LOAD_FILE',
+            'LOAD DATA',
+            'OUTFILE',
+            'DUMPFILE',
+            'INFILE',
+            'SLEEP',
+            'BENCHMARK',
+            'INFORMATION_SCHEMA',
+            'PERFORMANCE_SCHEMA',
+            'MYSQL.',
+            'SYS.',
+            'GET_LOCK',
+            'RELEASE_LOCK',
+            'IS_FREE_LOCK',
+            'CURRENT_USER',
+            'SESSION_USER',
+            'SYSTEM_USER',
+            'DATABASE(',
+            'SCHEMA(',
+            'VERSION(',
         ];
 
         foreach ($blocked as $keyword) {
@@ -75,12 +107,26 @@ final class SqlJudgeService
         }
 
         $cteNames = [];
-        if (preg_match_all('/(?:WITH|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s+AS\s*\(/i', $sql, $cteMatches)) {
+
+        if (
+            preg_match_all(
+                '/(?:WITH|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s+AS\s*\(/i',
+                $sql,
+                $cteMatches
+            )
+        ) {
             $cteNames = array_map('strtolower', $cteMatches[1]);
         }
 
         $tables = [];
-        if (preg_match_all('/\b(?:FROM|JOIN)\s+`?([a-zA-Z_][a-zA-Z0-9_]*)`?/i', $sql, $matches)) {
+
+        if (
+            preg_match_all(
+                '/\b(?:FROM|JOIN)\s+`?([a-zA-Z_][a-zA-Z0-9_]*)`?/i',
+                $sql,
+                $matches
+            )
+        ) {
             $tables = array_map('strtolower', $matches[1]);
         }
 
@@ -88,6 +134,7 @@ final class SqlJudgeService
             if (in_array($table, $cteNames, true)) {
                 continue;
             }
+
             if (! in_array($table, $this->allowedTables, true)) {
                 return [false, "Table '{$table}' is outside the SQL Arena sandbox."];
             }
@@ -103,6 +150,7 @@ final class SqlJudgeService
     public function judge(array $challenge, string $query): array
     {
         [$valid, $validationMessage] = $this->validate($query);
+
         if (! $valid) {
             return $this->failure('rejected', $validationMessage);
         }
@@ -118,13 +166,24 @@ final class SqlJudgeService
                 $executionMs = max(0.001, (microtime(true) - $start) * 1000);
 
                 $orderSensitive = (bool) ($challenge['order_sensitive'] ?? false);
-                $correct = $this->canonicalize($userRows, $orderSensitive)
-                    === $this->canonicalize($referenceRows, $orderSensitive);
 
-                $efficiency = $this->efficiencyScore($query, (string) $challenge['reference_query']);
+                $referenceResult = $this->canonicalize($referenceRows, $orderSensitive);
+                $userResult = $this->canonicalize($userRows, $orderSensitive);
+
+                $correct = $userResult === $referenceResult;
+
+                $efficiency = $this->efficiencyScore(
+                    $query,
+                    (string) $challenge['reference_query']
+                );
+
                 $speedBonus = $this->speedBonus($executionMs, $referenceMs);
+
                 $score = $correct
-                    ? min((int) $challenge['max_score'], 700 + $speedBonus + (int) round($efficiency * 1.5))
+                    ? min(
+                        (int) $challenge['max_score'],
+                        700 + $speedBonus + (int) round($efficiency * 1.5)
+                    )
                     : 0;
 
                 return [
@@ -135,14 +194,21 @@ final class SqlJudgeService
                     'efficiency_score' => $efficiency,
                     'feedback' => $correct
                         ? 'Accepted. Your result set matches the expected answer.'
-                        : 'Wrong answer. The query ran safely, but its result set does not match the challenge.',
+                        : $this->wrongAnswerFeedback(
+                            $userRows,
+                            $referenceRows,
+                            $orderSensitive
+                        ),
                     'rows' => array_slice($userRows, 0, 30),
                 ];
             });
         } catch (RuntimeException $error) {
             return $this->failure('rejected', $error->getMessage());
         } catch (PDOException $error) {
-            return $this->failure('error', 'SQL error: '.$this->cleanDbMessage($error->getMessage()));
+            return $this->failure(
+                'error',
+                'SQL error: '.$this->cleanDbMessage($error->getMessage())
+            );
         }
     }
 
@@ -153,8 +219,10 @@ final class SqlJudgeService
 
         while (($row = $stmt->fetch(PDO::FETCH_ASSOC)) !== false) {
             $rows[] = $row;
+
             if (count($rows) > self::MAX_RESULT_ROWS) {
                 $stmt->closeCursor();
+
                 throw new RuntimeException(
                     'Result set is too large for the arena. Refine the query to return at most '
                     .self::MAX_RESULT_ROWS.' rows.'
@@ -170,13 +238,16 @@ final class SqlJudgeService
         $mode = null;
 
         try {
-            // MariaDB / XAMPP builds.
-            $this->pdo->exec('SET SESSION max_statement_time = '.self::MAX_STATEMENT_SECONDS);
+            $this->pdo->exec(
+                'SET SESSION max_statement_time = '.self::MAX_STATEMENT_SECONDS
+            );
             $mode = 'mariadb';
         } catch (PDOException) {
             try {
-                // MySQL uses milliseconds for MAX_EXECUTION_TIME.
-                $this->pdo->exec('SET SESSION MAX_EXECUTION_TIME = '.(self::MAX_STATEMENT_SECONDS * 1000));
+                $this->pdo->exec(
+                    'SET SESSION MAX_EXECUTION_TIME = '
+                    .(self::MAX_STATEMENT_SECONDS * 1000)
+                );
                 $mode = 'mysql';
             } catch (PDOException) {
                 $mode = null;
@@ -193,7 +264,7 @@ final class SqlJudgeService
                     $this->pdo->exec('SET SESSION MAX_EXECUTION_TIME = 0');
                 }
             } catch (PDOException) {
-                // The connection may already have been closed after an error.
+                // Connection may already be closed after a database error.
             }
         }
     }
@@ -201,23 +272,77 @@ final class SqlJudgeService
     private function canonicalize(array $rows, bool $orderSensitive): array
     {
         $normalized = [];
+
         foreach ($rows as $row) {
+            /*
+             * Compare result values by column position rather than alias/name.
+             * SQL Battle should accept an equivalent SELECT that returns the
+             * same columns and values even when the player uses different
+             * aliases such as "AS total" instead of "AS accepted_count".
+             */
             $clean = [];
-            foreach ($row as $key => $value) {
-                $clean[(string) $key] = $value === null ? null : (string) $value;
+
+            foreach (array_values($row) as $value) {
+                $clean[] = $value === null ? null : (string) $value;
             }
+
             $normalized[] = $clean;
         }
 
         if (! $orderSensitive) {
             usort(
                 $normalized,
-                static fn (array $a, array $b): int => json_encode($a, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                    <=> json_encode($b, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                static fn (array $a, array $b): int => json_encode(
+                    $a,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                )
+                    <=>
+                    json_encode(
+                        $b,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    )
             );
         }
 
         return $normalized;
+    }
+
+    private function wrongAnswerFeedback(
+        array $userRows,
+        array $referenceRows,
+        bool $orderSensitive
+    ): string {
+        if (count($userRows) !== count($referenceRows)) {
+            return sprintf(
+                'Wrong answer. Expected %d result row%s, but your query returned %d.',
+                count($referenceRows),
+                count($referenceRows) === 1 ? '' : 's',
+                count($userRows)
+            );
+        }
+
+        $expectedColumns = $referenceRows === []
+            ? 0
+            : count(array_values($referenceRows[0]));
+
+        $userColumns = $userRows === []
+            ? 0
+            : count(array_values($userRows[0]));
+
+        if ($expectedColumns !== $userColumns) {
+            return sprintf(
+                'Wrong answer. Expected %d result column%s, but your query returned %d.',
+                $expectedColumns,
+                $expectedColumns === 1 ? '' : 's',
+                $userColumns
+            );
+        }
+
+        if ($orderSensitive) {
+            return 'Wrong answer. The row count and column count are correct, but the values or required row order do not match.';
+        }
+
+        return 'Wrong answer. The row count and column count are correct, but one or more result values do not match.';
     }
 
     private function efficiencyScore(string $userQuery, string $referenceQuery): int
@@ -225,6 +350,7 @@ final class SqlJudgeService
         try {
             $userRows = $this->estimatedRows($userQuery);
             $referenceRows = max(1, $this->estimatedRows($referenceQuery));
+
             if ($userRows <= 0) {
                 return 80;
             }
@@ -239,8 +365,12 @@ final class SqlJudgeService
 
     private function estimatedRows(string $query): int
     {
-        $rows = $this->pdo->query('EXPLAIN '.$query)->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->pdo
+            ->query('EXPLAIN '.$query)
+            ->fetchAll(PDO::FETCH_ASSOC);
+
         $total = 0;
+
         foreach ($rows as $row) {
             $total += max(0, (int) ($row['rows'] ?? 0));
         }
@@ -276,7 +406,11 @@ final class SqlJudgeService
 
     private function cleanDbMessage(string $message): string
     {
-        $message = preg_replace('/SQLSTATE\[[^\]]+\]:?\s*/', '', $message) ?? $message;
+        $message = preg_replace(
+            '/SQLSTATE\[[^\]]+\]:?\s*/',
+            '',
+            $message
+        ) ?? $message;
 
         return mb_substr($message, 0, 350);
     }

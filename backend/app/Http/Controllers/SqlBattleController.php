@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\SqlBattleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class SqlBattleController extends Controller
 {
@@ -18,6 +19,18 @@ class SqlBattleController extends Controller
         return $this->service()->challenges();
     }
 
+    public function opponents(Request $request)
+    {
+        $data = $request->validate([
+            'challenge_id' => ['nullable', 'string', 'exists:sql_challenges,id'],
+        ]);
+
+        return $this->service()->opponents(
+            (string) $request->user()->id,
+            $data['challenge_id'] ?? null
+        );
+    }
+
     public function leaderboard()
     {
         return $this->service()->leaderboard(20);
@@ -25,31 +38,68 @@ class SqlBattleController extends Controller
 
     public function recent(Request $request)
     {
-        return $this->service()->recentBattles($request->user()->id, 20);
+        return $this->service()->recentBattles((string) $request->user()->id, 20);
     }
 
     public function createBattle(Request $request)
     {
-        $data = $request->validate(['challenge_id' => ['required', 'string'], 'opponent_id' => ['required', 'string']]);
-        $id = $this->service()->createBattle($data['challenge_id'], $request->user()->id, $data['opponent_id']);
+        $data = $request->validate([
+            'challenge_id' => ['required', 'string', 'exists:sql_challenges,id'],
+            'opponent_id' => ['required', 'string', 'exists:users,id'],
+        ]);
 
-        return response()->json(['id' => $id], 201);
+        try {
+            $battle = $this->service()->createBattle(
+                $data['challenge_id'],
+                (string) $request->user()->id,
+                $data['opponent_id']
+            );
+        } catch (RuntimeException $error) {
+            return response()->json(['message' => $error->getMessage()], 422);
+        }
+
+        return response()->json($battle, $battle['created'] ? 201 : 200);
     }
 
     public function battle(Request $request, string $id)
     {
-        $s = $this->service();
-        $battle = $s->battle($id);
-        abort_if(! $battle, 404, 'Battle not found.');
-        abort_unless(in_array($request->user()->id, [$battle['player1_id'], $battle['player2_id']], true), 403);
+        $service = $this->service();
+        $battle = $service->battle($id);
 
-        return ['battle' => $battle, 'attempts' => $s->attemptsForBattle($id)];
+        abort_if(! $battle, 404, 'Battle not found.');
+
+        abort_unless(
+            in_array(
+                (string) $request->user()->id,
+                [(string) $battle['player1_id'], (string) $battle['player2_id']],
+                true
+            ),
+            403
+        );
+
+        return [
+            'current_user_id' => (string) $request->user()->id,
+            'battle' => $battle,
+            'attempts' => $service->attemptsForBattle($id),
+        ];
     }
 
     public function submit(Request $request, string $id)
     {
-        $data = $request->validate(['query' => ['required', 'string', 'max:3000'], 'battle_id' => ['nullable', 'string', 'max:64']]);
+        $data = $request->validate([
+            'query' => ['required', 'string', 'max:3000'],
+            'battle_id' => ['nullable', 'string', 'max:64'],
+        ]);
 
-        return $this->service()->submit($id, $request->user()->id, $data['query'], $data['battle_id'] ?? null);
+        try {
+            return $this->service()->submit(
+                $id,
+                (string) $request->user()->id,
+                $data['query'],
+                $data['battle_id'] ?? null
+            );
+        } catch (RuntimeException $error) {
+            return response()->json(['message' => $error->getMessage()], 422);
+        }
     }
 }

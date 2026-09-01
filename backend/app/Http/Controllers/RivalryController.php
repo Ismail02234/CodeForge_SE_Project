@@ -8,35 +8,67 @@ use Illuminate\Support\Facades\DB;
 
 class RivalryController extends Controller
 {
-    public function compare(Request $request, PerformanceProfileService $PROFILE)
-    {
-        $a = (string) ($request->query('a') ?: $request->user()->id);
-        $b = (string) $request->query('b', '');
-        $users = DB::table('users')->orderByDesc('rating')->limit(100)->get(['id', 'username', 'rating', 'rank']);
-        if ($b === '') {
-            return ['users' => $users, 'left' => $profile->calculate($a), 'right' => null];
+    public function compare(
+        Request $request,
+        PerformanceProfileService $performanceProfile
+    ): array {
+        $leftUserId = (string) (
+            $request->query('a') ?: $request->user()->id
+        );
+
+        $rightUserId = (string) $request->query('b', '');
+
+        $users = DB::table('users')
+            ->orderByDesc('rating')
+            ->limit(100)
+            ->get([
+                'id',
+                'username',
+                'rating',
+                'rank',
+            ]);
+
+        $left = $performanceProfile->calculate($leftUserId);
+
+        if ($rightUserId === '') {
+            return [
+                'users' => $users,
+                'left' => $left,
+                'right' => null,
+            ];
         }
 
-        $left = $profile->calculate($a);
-        $right = $profile->calculate($b);
-        $scoreA = $this->score($left);
-        $scoreB = $this->score($right);
-        $probA = $scoreA + $scoreB > 0 ? (int) round(($scoreA / ($scoreA + $scoreB)) * 100) : 50;
+        $right = $performanceProfile->calculate($rightUserId);
+
+        $leftScore = $this->score($left);
+        $rightScore = $this->score($right);
+
+        $combinedScore = $leftScore + $rightScore;
+
+        $leftProbability = $combinedScore > 0
+            ? (int) round(($leftScore / $combinedScore) * 100)
+            : 50;
 
         return [
-            'users' => $users, 'left' => $left, 'right' => $right,
+            'users' => $users,
+            'left' => $left,
+            'right' => $right,
             'prediction' => [
-                'left_probability' => $probA,
-                'right_probability' => 100 - $probA,
-                'edge' => $scoreA === $scoreB ? 'even' : ($scoreA > $scoreB ? 'left' : 'right'),
+                'left_probability' => $leftProbability,
+                'right_probability' => 100 - $leftProbability,
+                'edge' => $leftScore === $rightScore
+                    ? 'even'
+                    : ($leftScore > $rightScore ? 'left' : 'right'),
             ],
         ];
     }
 
-    private function score(array $PROFILE): float
+    private function score(array $profile): float
     {
-        $rating = (float) ($PROFILE['user']['rating'] ?? 1200);
+        $rating = (float) ($profile['user']['rating'] ?? 1200);
 
-        return ($rating / 50) + (($PROFILE['overall'] ?? 0) * 1.5) + (($PROFILE['dimensions']['consistency'] ?? 0) * .45);
+        return ($rating / 50)
+            + (($profile['overall'] ?? 0) * 1.5)
+            + (($profile['dimensions']['consistency'] ?? 0) * 0.45);
     }
 }

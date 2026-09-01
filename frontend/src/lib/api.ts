@@ -16,15 +16,42 @@ export class ApiError extends Error {
 
 function cookie(name: string): string {
   if (typeof document === 'undefined') return '';
+
   const part = document.cookie.split('; ').find((item) => item.startsWith(`${name}=`));
+
   return part ? decodeURIComponent(part.split('=').slice(1).join('=')) : '';
 }
 
+async function fetchFromApi(path: string, options: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${API_URL}${path}`, options);
+  } catch {
+    throw new ApiError(
+      `CodeForge backend is not reachable at ${API_URL}. ` + 'Restart CodeForge and try again.',
+      0
+    );
+  }
+}
+
+function clearLegacyXsrfCookie(): void {
+  if (typeof document === 'undefined') return;
+
+  document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/; SameSite=Lax';
+  document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/; domain=localhost; SameSite=Lax';
+}
 async function csrf(): Promise<void> {
-  await fetch(`${API_URL}/sanctum/csrf-cookie`, {
+  clearLegacyXsrfCookie();
+  const response = await fetchFromApi('/sanctum/csrf-cookie', {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });
+
+  if (!response.ok) {
+    throw new ApiError(
+      `Could not initialize the login session (${response.status}).`,
+      response.status
+    );
+  }
 }
 
 type RequestOptions = RequestInit & { csrf?: boolean };
@@ -32,16 +59,25 @@ type RequestOptions = RequestInit & { csrf?: boolean };
 export async function request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
   const needsCsrf = options.csrf ?? !['GET', 'HEAD', 'OPTIONS'].includes(method);
-  if (needsCsrf) await csrf();
+
+  if (needsCsrf) {
+    await csrf();
+  }
 
   const headers = new Headers(options.headers || {});
   headers.set('Accept', 'application/json');
-  if (options.body && !(options.body instanceof FormData))
-    headers.set('Content-Type', 'application/json');
-  const token = cookie('XSRF-TOKEN');
-  if (needsCsrf && token) headers.set('X-XSRF-TOKEN', token);
 
-  const response = await fetch(`${API_URL}${path}`, {
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const token = cookie('XSRF-TOKEN');
+
+  if (needsCsrf && token) {
+    headers.set('X-XSRF-TOKEN', token);
+  }
+
+  const response = await fetchFromApi(path, {
     ...options,
     method,
     headers,
@@ -56,6 +92,7 @@ export async function request<T = any>(path: string, options: RequestOptions = {
       typeof data === 'object' && data?.message
         ? data.message
         : `Request failed (${response.status})`;
+
     throw new ApiError(message, response.status, typeof data === 'object' ? data.errors || {} : {});
   }
 
@@ -65,8 +102,14 @@ export async function request<T = any>(path: string, options: RequestOptions = {
 export const api = {
   get: <T = any>(path: string) => request<T>(path),
   post: <T = any>(path: string, data: any = {}) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(data) }),
+    request<T>(path, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   patch: <T = any>(path: string, data: any = {}) =>
-    request<T>(path, { method: 'PATCH', body: JSON.stringify(data) }),
+    request<T>(path, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   delete: <T = any>(path: string) => request<T>(path, { method: 'DELETE' }),
 };

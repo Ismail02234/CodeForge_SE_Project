@@ -2,8 +2,11 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth, logout } from '$lib/stores/auth';
+
   let mobileOpen = false;
+  let desktopCollapsed = false;
   let search = '';
+
   const nav = [
     ['/dashboard', 'Dashboard', '⌁'],
     ['/problems', 'Problems', '<>'],
@@ -16,61 +19,123 @@
     ['/database', 'Database', '▤'],
     ['/how-it-works', 'How it works', '?'],
   ];
+
   async function signOut() {
     await logout();
     await goto('/');
   }
+
   function submitSearch() {
     const q = search.trim();
-    if (q) goto(`/search?q=${encodeURIComponent(q)}`);
+
+    if (q) {
+      goto(`/search?q=${encodeURIComponent(q)}`);
+    }
+  }
+
+  function isMobileViewport() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches;
+  }
+
+  function toggleSidebar() {
+    if (isMobileViewport()) {
+      mobileOpen = !mobileOpen;
+      return;
+    }
+
+    desktopCollapsed = !desktopCollapsed;
+  }
+
+  function closeMobileSidebar() {
+    mobileOpen = false;
   }
 </script>
 
-<div class="app-shell">
+<div class="app-shell" class:sidebar-collapsed={desktopCollapsed}>
   <aside class:open={mobileOpen} class="sidebar">
-    <a class="brand" href="/dashboard"><span>&lt;/&gt;</span><strong>CODE<b>FORGE</b></strong></a>
+    <a class="brand" href="/dashboard">
+      <span>&lt;/&gt;</span>
+      <strong>CODE<b>FORGE</b></strong>
+    </a>
+
     <div class="side-caption">COMMAND SYSTEM</div>
+
     <nav>
       {#each nav as item}
         <a
           href={item[0]}
           class:active={$page.url.pathname === item[0] ||
             ($page.url.pathname.startsWith(item[0] + '/') && item[0] !== '/dashboard')}
-          on:click={() => (mobileOpen = false)}
+          on:click={closeMobileSidebar}
         >
-          <i>{item[2]}</i><span>{item[1]}</span>
+          <i>{item[2]}</i>
+          <span>{item[1]}</span>
         </a>
       {/each}
-      {#if $auth.user?.role === 'admin'}<a
+
+      {#if $auth.user?.role === 'admin'}
+        <a
           href="/sql-lab"
-          class:active={$page.url.pathname === '/sql-lab'}><i>SQL</i><span>SQL Lab</span></a
-        >{/if}
+          class:active={$page.url.pathname === '/sql-lab'}
+          on:click={closeMobileSidebar}
+        >
+          <i>SQL</i>
+          <span>SQL Lab</span>
+        </a>
+      {/if}
     </nav>
+
     <div class="sidebar-user">
-      <div class="avatar">{$auth.user?.username?.slice(0, 1).toUpperCase()}</div>
-      <div><strong>{$auth.user?.username}</strong><small>{$auth.user?.rank}</small></div>
+      <div class="avatar">
+        {$auth.user?.username?.slice(0, 1).toUpperCase()}
+      </div>
+
+      <div>
+        <strong>{$auth.user?.username}</strong>
+        <small>{$auth.user?.rank}</small>
+      </div>
     </div>
   </aside>
-  {#if mobileOpen}<button
-      class="sidebar-scrim"
-      aria-label="Close menu"
-      on:click={() => (mobileOpen = false)}
-    ></button>{/if}
+
+  {#if mobileOpen}
+    <button class="sidebar-scrim" aria-label="Close menu" on:click={closeMobileSidebar}></button>
+  {/if}
+
   <section class="app-main">
     <header class="topbar">
-      <button class="menu-button" on:click={() => (mobileOpen = !mobileOpen)} aria-label="Menu"
-        >☰</button
+      <button
+        class="menu-button"
+        class:sidebar-open={!desktopCollapsed}
+        class:mobile-open={mobileOpen}
+        on:click={toggleSidebar}
+        aria-label="Toggle sidebar"
+        aria-expanded={isMobileViewport() ? mobileOpen : !desktopCollapsed}
+        title={desktopCollapsed ? 'Open sidebar' : 'Minimize sidebar'}
       >
+        <span class="hamburger-lines" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+
       <form class="global-search" on:submit|preventDefault={submitSearch}>
-        <span>⌕</span><input bind:value={search} placeholder="Search CodeForge..." />
+        <span>⌕</span>
+        <input bind:value={search} placeholder="Search CodeForge..." />
       </form>
+
       <div class="top-actions">
-        <a class="top-profile" href={$auth.user ? `/profile/${$auth.user.id}` : '/dashboard'}
-          ><span class="status-dot"></span>{$auth.user?.username}</a
-        >
-        <button class="logout-button" on:click={signOut} title="Log out">↗</button>
+        <a class="top-profile" href={$auth.user ? `/profile/${$auth.user.id}` : '/dashboard'}>
+          <span class="status-dot"></span>
+          {$auth.user?.username}
+        </a>
+
+        <button class="logout-button" on:click={signOut} title="Log out"> ↗ </button>
       </div>
     </header>
-    <main class="content"><slot /></main>
+
+    <main class="content">
+      <slot />
+    </main>
   </section>
 </div>

@@ -18,6 +18,14 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+/*
+ * CodeForge session bootstrap.
+ *
+ * This endpoint lives in routes/api.php so it is always registered, while the
+ * explicit "web" middleware gives it Laravel session + CSRF cookie behavior.
+ * GET requests do not bypass CSRF validation; they initialize the token that
+ * the subsequent POST /login request must provide.
+ */
 Route::get('/public/stats', [PublicController::class, 'stats']);
 Route::get('/universities/options', [PublicController::class, 'universities']);
 

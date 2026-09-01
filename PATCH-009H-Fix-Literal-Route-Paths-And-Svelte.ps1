@@ -1,0 +1,533 @@
+﻿# PATCH-009H-Fix-Literal-Route-Paths-And-Svelte.ps1
+# CodeForge 3.0
+#
+# Fixes PATCH-009G's Windows PowerShell path bug.
+# Route folders such as [id] contain square brackets, which PowerShell treats
+# as wildcard characters unless -LiteralPath is used.
+#
+# This patch:
+# - uses literal filesystem paths for all Svelte route files
+# - applies the four Svelte/TypeScript fixes from PATCH-009G
+# - keeps Laravel/MySQL/data untouched
+# - runs backend checks, frontend contract checks, svelte-check and production build
+#
+# Run from:
+#   D:\xampp\htdocs\codeforge
+#
+# Command:
+#   powershell -ExecutionPolicy Bypass -File .\PATCH-009H-Fix-Literal-Route-Paths-And-Svelte.ps1
+
+$ErrorActionPreference = 'Stop'
+
+function Step([string]$Message) {
+    Write-Host ''
+    Write-Host "==> $Message" -ForegroundColor Cyan
+}
+
+function Ok([string]$Message) {
+    Write-Host "[OK]   $Message" -ForegroundColor Green
+}
+
+function Warn([string]$Message) {
+    Write-Host "[WARN] $Message" -ForegroundColor Yellow
+}
+
+function Refresh-NodePath {
+    $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $user = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $parts = @()
+
+    if ($machine) { $parts += $machine }
+    if ($user) { $parts += $user }
+
+    $env:Path = ($parts -join ';')
+
+    foreach ($dir in @(
+        'C:\Program Files\nodejs',
+        'C:\Program Files (x86)\nodejs'
+    )) {
+        if ((Test-Path -LiteralPath $dir) -and ($env:Path -notlike "*$dir*")) {
+            $env:Path = "$dir;$env:Path"
+        }
+    }
+}
+
+function Find-Npm {
+    Refresh-NodePath
+
+    foreach ($candidate in @(
+        'C:\Program Files\nodejs\npm.cmd',
+        'C:\Program Files (x86)\nodejs\npm.cmd'
+    )) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+
+    $cmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if ($null -ne $cmd) {
+        return $cmd.Source
+    }
+
+    return $null
+}
+
+function Run-Native(
+    [string]$Executable,
+    [string[]]$Arguments,
+    [string]$FailureMessage
+) {
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    & $Executable @Arguments
+    $code = $LASTEXITCODE
+
+    $ErrorActionPreference = $oldPreference
+
+    if ($code -ne 0) {
+        throw "$FailureMessage (exit code $code)"
+    }
+}
+
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+if (-not (Test-Path -LiteralPath (Join-Path $root 'frontend\package.json'))) {
+    $root = (Get-Location).Path
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $root 'frontend\package.json'))) {
+    throw 'CodeForge SvelteKit frontend was not found. Put this patch in D:\xampp\htdocs\codeforge.'
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $root 'backend\artisan'))) {
+    throw 'CodeForge Laravel backend was not found.'
+}
+
+Set-Location $root
+
+$npm = Find-Npm
+if ($null -eq $npm) {
+    throw 'npm.cmd could not be found.'
+}
+
+$node = Get-Command node.exe -ErrorAction SilentlyContinue
+if ($null -eq $node) {
+    throw 'node.exe could not be found.'
+}
+
+$php = 'D:\xampp\php\php.exe'
+if (-not (Test-Path -LiteralPath $php)) {
+    throw 'XAMPP PHP was not found at D:\xampp\php\php.exe.'
+}
+
+Step 'Checking framework environment'
+
+$nodeVersion = (& $node.Source --version).Trim()
+$npmVersion = (& $npm --version).Trim()
+$phpVersion = (& $php -r "echo PHP_VERSION;").Trim()
+
+Ok "PHP $phpVersion"
+Ok "Node.js $nodeVersion"
+Ok "npm $npmVersion"
+
+$files = @{
+    'frontend\src\routes\+page.svelte' = @'
+PHNjcmlwdCBsYW5nPSJ0cyI+CiAgaW1wb3J0IHsgb25Nb3VudCB9IGZyb20gJ3N2ZWx0ZSc7CiAgaW1wb3J0IHsgYXV0aCwgbG9h
+ZFVzZXIsIGxvZ291dCB9IGZyb20gJyRsaWIvc3RvcmVzL2F1dGgnOwogIGltcG9ydCB7IGFwaSB9IGZyb20gJyRsaWIvYXBpJzsK
+ICBpbXBvcnQgRm9yZ2VDYW52YXMgZnJvbSAnJGxpYi9jb21wb25lbnRzL0ZvcmdlQ2FudmFzLnN2ZWx0ZSc7CgogIHR5cGUgUHVi
+bGljU3RhdHMgPSB7CiAgICB1c2VyczogbnVtYmVyOwogICAgcHJvYmxlbXM6IG51bWJlcjsKICAgIHN1Ym1pc3Npb25zOiBudW1i
+ZXI7CiAgfTsKCiAgbGV0IHN0YXRzOiBQdWJsaWNTdGF0cyA9IHsgdXNlcnM6IDAsIHByb2JsZW1zOiAwLCBzdWJtaXNzaW9uczog
+MCB9OwogIGxldCBjb3JlOiBIVE1MRGl2RWxlbWVudCB8IHVuZGVmaW5lZDsKCiAgb25Nb3VudCgoKSA9PiB7CiAgICB2b2lkIGxv
+YWRVc2VyKCk7CgogICAgdm9pZCBhcGkKICAgICAgLmdldDxQdWJsaWNTdGF0cz4oJy9hcGkvcHVibGljL3N0YXRzJykKICAgICAg
+LnRoZW4oKHZhbHVlKSA9PiB7CiAgICAgICAgc3RhdHMgPSB2YWx1ZTsKICAgICAgfSkKICAgICAgLmNhdGNoKCgpID0+IHsKICAg
+ICAgICAvLyBUaGUgbGFuZGluZyBwYWdlIHNob3VsZCBzdGlsbCB3b3JrIGlmIHB1YmxpYyBzdGF0cyBhcmUgdW5hdmFpbGFibGUu
+CiAgICAgIH0pOwoKICAgIGNvbnN0IG1vdmUgPSAoZXZlbnQ6IFBvaW50ZXJFdmVudCkgPT4gewogICAgICBpZiAoIWNvcmUpIHJl
+dHVybjsKCiAgICAgIGNvbnN0IHggPSAoZXZlbnQuY2xpZW50WCAvIHdpbmRvdy5pbm5lcldpZHRoIC0gMC41KSAqIDI7CiAgICAg
+IGNvbnN0IHkgPSAoZXZlbnQuY2xpZW50WSAvIHdpbmRvdy5pbm5lckhlaWdodCAtIDAuNSkgKiAyOwoKICAgICAgY29yZS5zdHls
+ZS50cmFuc2Zvcm0gPSBgcm90YXRlWCgkey15ICogN31kZWcpIHJvdGF0ZVkoJHt4ICogOX1kZWcpIHRyYW5zbGF0ZTNkKCR7eCAq
+IDd9cHgsICR7eSAqIDd9cHgsIDApYDsKICAgIH07CgogICAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ3BvaW50ZXJtb3ZlJywg
+bW92ZSwgeyBwYXNzaXZlOiB0cnVlIH0pOwoKICAgIHJldHVybiAoKSA9PiB7CiAgICAgIHdpbmRvdy5yZW1vdmVFdmVudExpc3Rl
+bmVyKCdwb2ludGVybW92ZScsIG1vdmUpOwogICAgfTsKICB9KTsKCiAgYXN5bmMgZnVuY3Rpb24gc2lnbk91dCgpIHsKICAgIGF3
+YWl0IGxvZ291dCgpOwogIH0KPC9zY3JpcHQ+Cgo8c3ZlbHRlOmhlYWQ+CiAgPHRpdGxlPkNvZGVGb3JnZSDigJQgRm9yZ2UgWW91
+ciBFZGdlPC90aXRsZT4KICA8bWV0YQogICAgbmFtZT0iZGVzY3JpcHRpb24iCiAgICBjb250ZW50PSJDb21wZXRpdGl2ZSBwcm9n
+cmFtbWluZyBpbnRlbGxpZ2VuY2UsIEdob3N0IFJhY2UgYW5kIFNRTCBCYXR0bGUgQXJlbmEuIgogIC8+Cjwvc3ZlbHRlOmhlYWQ+
+Cgo8ZGl2IGNsYXNzPSJsYW5kaW5nIj4KICA8Rm9yZ2VDYW52YXMgLz4KICA8ZGl2IGNsYXNzPSJsYW5kaW5nLW5vaXNlIj48L2Rp
+dj4KCiAgPGhlYWRlciBjbGFzcz0ibGFuZGluZy1uYXYiPgogICAgPGEgY2xhc3M9ImJyYW5kIiBocmVmPSIvIj4KICAgICAgPHNw
+YW4+Jmx0Oy8mZ3Q7PC9zcGFuPgogICAgICA8c3Ryb25nPkNPREU8Yj5GT1JHRTwvYj48L3N0cm9uZz4KICAgIDwvYT4KCiAgICA8
+bmF2PgogICAgICA8YSBocmVmPSIjZmVhdHVyZXMiPkZlYXR1cmVzPC9hPgogICAgICA8YSBocmVmPSIjc3lzdGVtIj5TeXN0ZW08
+L2E+CiAgICAgIDxhIGhyZWY9IiNhcmVuYSI+QXJlbmE8L2E+CiAgICA8L25hdj4KCiAgICA8ZGl2IGNsYXNzPSJsYW5kaW5nLWF1
+dGgiPgogICAgICB7I2lmICRhdXRoLnVzZXJ9CiAgICAgICAgPGEgY2xhc3M9ImJ0biBnaG9zdCIgaHJlZj0iL2Rhc2hib2FyZCI+
+RGFzaGJvYXJkPC9hPgogICAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBkYW5nZXIiIG9uOmNsaWNrPXtzaWduT3V0fT5Mb2cgb3V0
+PC9idXR0b24+CiAgICAgIHs6ZWxzZX0KICAgICAgICA8YSBjbGFzcz0iYnRuIGdob3N0IiBocmVmPSIvbG9naW4iPkxvZyBpbjwv
+YT4KICAgICAgICA8YSBjbGFzcz0iYnRuIHByaW1hcnkiIGhyZWY9Ii9yZWdpc3RlciI+Q3JlYXRlIGFjY291bnQ8L2E+CiAgICAg
+IHsvaWZ9CiAgICA8L2Rpdj4KICA8L2hlYWRlcj4KCiAgPHNlY3Rpb24gY2xhc3M9ImxhbmRpbmctaGVybyIgaWQ9InN5c3RlbSI+
+CiAgICA8ZGl2IGNsYXNzPSJoZXJvLWNvcHkiPgogICAgICA8ZGl2IGNsYXNzPSJleWVicm93IGxpdmUiPjxpPjwvaT5DT01QRVRJ
+VElWRSBQUk9HUkFNTUlORyAvLyBJTlRFTExJR0VOQ0UgU1lTVEVNPC9kaXY+CiAgICAgIDxoMT5GT1JHRTxiciAvPjxzcGFuPllP
+VVIgRURHRS48L3NwYW4+PC9oMT4KICAgICAgPHA+CiAgICAgICAgVHJhaW4gaGFyZGVyLiBSZWFkIHlvdXIgY29kaW5nIEROQS4g
+UmFjZSByZWNvcmRlZCBzb2x2aW5nIHNlc3Npb25zLiBGaWdodCBkZXRlcm1pbmlzdGljIFNRTAogICAgICAgIGJhdHRsZXMuIFR1
+cm4gZXZlcnkgc3VibWlzc2lvbiBpbnRvIGFuIGFkdmFudGFnZS4KICAgICAgPC9wPgoKICAgICAgPGRpdiBjbGFzcz0iaGVyby1h
+Y3Rpb25zIj4KICAgICAgICB7I2lmICRhdXRoLnVzZXJ9CiAgICAgICAgICA8YSBjbGFzcz0iYnRuIHByaW1hcnkgYmlnIiBocmVm
+PSIvZGFzaGJvYXJkIj5FTlRFUiBDT01NQU5EIENFTlRFUiDihpI8L2E+CiAgICAgICAgezplbHNlfQogICAgICAgICAgPGEgY2xh
+c3M9ImJ0biBwcmltYXJ5IGJpZyIgaHJlZj0iL3JlZ2lzdGVyIj5DUkVBVEUgWU9VUiBBQ0NPVU5UIOKGkjwvYT4KICAgICAgICAg
+IDxhIGNsYXNzPSJidG4gZ2hvc3QgYmlnIiBocmVmPSIvbG9naW4iPkxPRyBJTjwvYT4KICAgICAgICB7L2lmfQogICAgICA8L2Rp
+dj4KCiAgICAgIDxkaXYgY2xhc3M9Imhlcm8tc2VxdWVuY2UiPgogICAgICAgIDxzcGFuPjAxIEFOQUxZWkU8L3NwYW4+CiAgICAg
+ICAgPHNwYW4+MDIgQ09NUEVURTwvc3Bhbj4KICAgICAgICA8c3Bhbj4wMyBFVk9MVkU8L3NwYW4+CiAgICAgIDwvZGl2PgogICAg
+PC9kaXY+CgogICAgPGRpdiBjbGFzcz0iZm9yZ2UtdmlzdWFsIj4KICAgICAgPGRpdiBjbGFzcz0iaGFsbyBoMSI+PC9kaXY+CiAg
+ICAgIDxkaXYgY2xhc3M9ImhhbG8gaDIiPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJoYWxvIGgzIj48L2Rpdj4KICAgICAgPGRp
+diBjbGFzcz0iZm9yZ2UtY29yZSIgYmluZDp0aGlzPXtjb3JlfT4KICAgICAgICA8ZGl2IGNsYXNzPSJjb3JlLXJpbmciPjwvZGl2
+PgogICAgICAgIDxkaXYgY2xhc3M9ImNvcmUtY2VudGVyIj4KICAgICAgICAgIDxzdHJvbmc+Jmx0Oy8mZ3Q7PC9zdHJvbmc+CiAg
+ICAgICAgICA8c21hbGw+Rk9SR0UgQ09SRTwvc21hbGw+CiAgICAgICAgICA8Yj5PTkxJTkU8L2I+CiAgICAgICAgPC9kaXY+CiAg
+ICAgIDwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJmbG9hdC1jYXJkIGZjMSI+PHNtYWxsPkNPREUgRE5BPC9zbWFsbD48c3Ryb25n
+Pjk3JTwvc3Ryb25nPjxzcGFuPkVMSVRFIFNJR05BTDwvc3Bhbj48L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iZmxvYXQtY2FyZCBm
+YzIiPjxzbWFsbD5HSE9TVCBERUxUQTwvc21hbGw+PHN0cm9uZz4tMDA6NDI8L3N0cm9uZz48c3Bhbj5ZT1UgQVJFIEFIRUFEPC9z
+cGFuPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJmbG9hdC1jYXJkIGZjMyI+PHNtYWxsPlNRTCBBUkVOQTwvc21hbGw+PHN0cm9u
+Zz45MjA8L3N0cm9uZz48c3Bhbj5CQVRUTEUgU0NPUkU8L3NwYW4+PC9kaXY+CiAgICA8L2Rpdj4KICA8L3NlY3Rpb24+CgogIDxz
+ZWN0aW9uIGNsYXNzPSJsYW5kaW5nLXN0YXRzIj4KICAgIDxkaXY+PHNtYWxsPlJFR0lTVEVSRUQgQ09ERVJTPC9zbWFsbD48c3Ry
+b25nPntzdGF0cy51c2Vyc308L3N0cm9uZz48L2Rpdj4KICAgIDxkaXY+PHNtYWxsPlBST0JMRU1TIE9OTElORTwvc21hbGw+PHN0
+cm9uZz57c3RhdHMucHJvYmxlbXN9PC9zdHJvbmc+PC9kaXY+CiAgICA8ZGl2PjxzbWFsbD5TVUJNSVNTSU9OUyBUUkFDS0VEPC9z
+bWFsbD48c3Ryb25nPntzdGF0cy5zdWJtaXNzaW9uc308L3N0cm9uZz48L2Rpdj4KICAgIDxkaXY+PHNtYWxsPlNZU1RFTSBTVEFU
+VVM8L3NtYWxsPjxzdHJvbmcgY2xhc3M9ImdyZWVuIj7il48gTElWRTwvc3Ryb25nPjwvZGl2PgogIDwvc2VjdGlvbj4KCiAgPHNl
+Y3Rpb24gY2xhc3M9ImxhbmRpbmctc2VjdGlvbiIgaWQ9ImZlYXR1cmVzIj4KICAgIDxkaXYgY2xhc3M9InNlY3Rpb24tdGl0bGUi
+PgogICAgICA8c3Bhbj4vMDE8L3NwYW4+CiAgICAgIDxoMj5CVUlMVCBUTzxiciAvPjxiPkhJVCBIQVJERVIuPC9iPjwvaDI+CiAg
+ICAgIDxwPgogICAgICAgIE9uZSBjb21wZXRpdGl2ZSBwcm9maWxlIGRyaXZlcyBldmVyeSBzeXN0ZW0uIFBlcmZvcm1hbmNlIGhp
+c3RvcnkgYmVjb21lcyBhbmFseXRpY3MsCiAgICAgICAgcmVwbGF5YWJsZSByYWNlcyBhbmQgbWVhc3VyYWJsZSBwcm9ncmVzc2lv
+bi4KICAgICAgPC9wPgogICAgPC9kaXY+CgogICAgPGRpdiBjbGFzcz0iZmVhdHVyZS1ncmlkIj4KICAgICAgPGEgY2xhc3M9ImZl
+YXR1cmUtY2FyZCByZWQiIGhyZWY9eyRhdXRoLnVzZXIgPyAnL2NvZGUtZG5hJyA6ICcvbG9naW4nfT4KICAgICAgICA8c21hbGw+
+MDE8L3NtYWxsPjxpPuKsoTwvaT48aDM+Q09ERSBETkE8L2gzPgogICAgICAgIDxwPkFjY3VyYWN5LCBzcGVlZCwgY29uc2lzdGVu
+Y3ksIHZlcnNhdGlsaXR5LCBjaGFsbGVuZ2UgaGFuZGxpbmcsIHRvcGljIG1hc3RlcnkgYW5kIGFuIGV4cGxhaW5hYmxlIGFyY2hl
+dHlwZS48L3A+CiAgICAgICAgPGI+UkVBRCBZT1VSIFBST0ZJTEUg4oaSPC9iPgogICAgICA8L2E+CiAgICAgIDxhIGNsYXNzPSJm
+ZWF0dXJlLWNhcmQgb3JhbmdlIiBocmVmPXskYXV0aC51c2VyID8gJy9naG9zdC1yYWNlJyA6ICcvbG9naW4nfT4KICAgICAgICA8
+c21hbGw+MDI8L3NtYWxsPjxpPuKXiTwvaT48aDM+R0hPU1QgUkFDRTwvaDM+CiAgICAgICAgPHA+UmFjZSBhZ2FpbnN0IHJlYWwg
+aGlzdG9yaWNhbCB0aW1lbGluZXMgd2l0aG91dCBleHBvc2luZyBhbm90aGVyIGNvZGVyJ3Mgc291cmNlIGNvZGUuPC9wPgogICAg
+ICAgIDxiPkNIQVNFIFRIRSBHSE9TVCDihpI8L2I+CiAgICAgIDwvYT4KICAgICAgPGEgY2xhc3M9ImZlYXR1cmUtY2FyZCBjeWFu
+IiBocmVmPXskYXV0aC51c2VyID8gJy9zcWwtYmF0dGxlJyA6ICcvbG9naW4nfT4KICAgICAgICA8c21hbGw+MDM8L3NtYWxsPjxp
+PuKWpjwvaT48aDM+U1FMIEJBVFRMRTwvaDM+CiAgICAgICAgPHA+U0VMRUNULW9ubHkgYmF0dGxlcyBzY29yZWQgYnkgY29ycmVj
+dG5lc3MsIHNwZWVkIGFuZCBxdWVyeSBlZmZpY2llbmN5IGluc2lkZSBpc29sYXRlZCBhcmVuYSB0YWJsZXMuPC9wPgogICAgICAg
+IDxiPkVOVEVSIFRIRSBBUkVOQSDihpI8L2I+CiAgICAgIDwvYT4KICAgIDwvZGl2PgogIDwvc2VjdGlvbj4KCiAgPHNlY3Rpb24g
+Y2xhc3M9ImxhbmRpbmctdGVybWluYWwiIGlkPSJhcmVuYSI+CiAgICA8ZGl2IGNsYXNzPSJ0ZXJtaW5hbCI+CiAgICAgIDxkaXYg
+Y2xhc3M9InRlcm1pbmFsLWhlYWQiPjxzcGFuPuKXjyDil48g4pePPC9zcGFuPjxiPmNvZGVmb3JnZTovL3N5c3RlbS9ib290PC9i
+PjxlbT5MSVZFPC9lbT48L2Rpdj4KICAgICAgPHByZT48c3Bhbj4wMTwvc3Bhbj4gJCBpbml0aWFsaXplIGNvZGVmb3JnZSAtLW1v
+ZGU9YWdncmVzc2l2ZQo8c3Bhbj4wMjwvc3Bhbj4gbG9hZGluZyBwZXJmb3JtYW5jZSBpbnRlbGxpZ2VuY2UuLi4KPHNwYW4+MDM8
+L3NwYW4+IG1vdW50aW5nIGdob3N0LXJhY2UgdGltZWxpbmUgZW5naW5lLi4uCjxzcGFuPjA0PC9zcGFuPiBpc29sYXRpbmcgU1FM
+IGJhdHRsZSBzYW5kYm94Li4uCjxzcGFuPjA1PC9zcGFuPiA8Yj5SRUFEWS48L2I+IGNob29zZSB5b3VyIG5leHQgbW92ZV88L3By
+ZT4KICAgIDwvZGl2PgogICAgPGRpdj4KICAgICAgPHNwYW4gY2xhc3M9ImV5ZWJyb3ciPi8wMjwvc3Bhbj4KICAgICAgPGgyPllP
+VVI8YnIgLz5DT01NQU5EPGJyIC8+PGI+Q0VOVEVSLjwvYj48L2gyPgogICAgICA8cD4KICAgICAgICBQcm9maWxlcywgcHJhY3Rp
+Y2UsIGNvbnRlc3RzLCByaXZhbHJ5LCB1bml2ZXJzaXRpZXMsIENvZGUgRE5BLCBHaG9zdCBSYWNlIGFuZCBTUUwgQmF0dGxlIGFs
+bAogICAgICAgIG9wZXJhdGUgb24gdGhlIHNhbWUgTXlTUUwgaGlzdG9yeS4KICAgICAgPC9wPgogICAgPC9kaXY+CiAgPC9zZWN0
+aW9uPgoKICA8Zm9vdGVyIGNsYXNzPSJsYW5kaW5nLWZvb3RlciI+CiAgICA8YSBjbGFzcz0iYnJhbmQiIGhyZWY9Ii8iPjxzcGFu
+PiZsdDsvJmd0Ozwvc3Bhbj48c3Ryb25nPkNPREU8Yj5GT1JHRTwvYj48L3N0cm9uZz48L2E+CiAgICA8cD5TdmVsdGVLaXQgKyBM
+YXJhdmVsIDExICsgTXlTUUw8L3A+CiAgICA8c3Bhbj5DT0RFRk9SR0UgLy8gMy4wPC9zcGFuPgogIDwvZm9vdGVyPgo8L2Rpdj4K
+'@
+    'frontend\src\routes\(app)\code-dna\+page.svelte' = @'
+PHNjcmlwdCBsYW5nPSJ0cyI+CiAgaW1wb3J0IHsgb25Nb3VudCB9IGZyb20gJ3N2ZWx0ZSc7CiAgaW1wb3J0IHsgcGFnZSB9IGZy
+b20gJyRhcHAvc3RvcmVzJzsKICBpbXBvcnQgeyBhcGkgfSBmcm9tICckbGliL2FwaSc7CiAgaW1wb3J0IExvYWRpbmcgZnJvbSAn
+JGxpYi9jb21wb25lbnRzL0xvYWRpbmcuc3ZlbHRlJzsKICBpbXBvcnQgRG5hUmFkYXIgZnJvbSAnJGxpYi9jb21wb25lbnRzL0Ru
+YVJhZGFyLnN2ZWx0ZSc7CgogIHR5cGUgRG5hVG9waWMgPSB7CiAgICBzY29yZTogbnVtYmVyOwogICAgYWNjdXJhY3k6IG51bWJl
+cjsKICAgIHNwZWVkOiBudW1iZXI7CiAgICBkaWZmaWN1bHR5OiBudW1iZXI7CiAgICByZWNlbmN5OiBudW1iZXI7CiAgICBhdHRl
+bXB0ZWQ6IG51bWJlcjsKICAgIHNvbHZlZDogbnVtYmVyOwogIH07CgogIHR5cGUgRG5hUmVzcG9uc2UgPSB7CiAgICB1c2VyOiB7
+CiAgICAgIGlkOiBzdHJpbmc7CiAgICAgIHVzZXJuYW1lOiBzdHJpbmc7CiAgICAgIHJhdGluZzogbnVtYmVyOwogICAgICByYW5r
+OiBzdHJpbmc7CiAgICAgIHVuaXZlcnNpdHk/OiBzdHJpbmcgfCBudWxsOwogICAgfTsKICAgIGRpbWVuc2lvbnM6IFJlY29yZDxz
+dHJpbmcsIG51bWJlcj47CiAgICBkaW1lbnNpb25fbGFiZWxzOiBSZWNvcmQ8c3RyaW5nLCBzdHJpbmc+OwogICAgb3ZlcmFsbDog
+bnVtYmVyOwogICAgYXJjaGV0eXBlOiB7CiAgICAgIG5hbWU6IHN0cmluZzsKICAgICAgdGFnbGluZTogc3RyaW5nOwogICAgfTsK
+ICAgIHRvcGljczogUmVjb3JkPHN0cmluZywgRG5hVG9waWM+OwogICAgc3RyZW5ndGhzOiBzdHJpbmdbXTsKICAgIGdyb3d0aF9h
+cmVhczogc3RyaW5nW107CiAgICBzdGF0czogewogICAgICB0b3RhbF9zdWJtaXNzaW9uczogbnVtYmVyOwogICAgICBhY2NlcHRl
+ZF9zdWJtaXNzaW9uczogbnVtYmVyOwogICAgICBzb2x2ZWRfcHJvYmxlbXM6IG51bWJlcjsKICAgICAgc29sdmVkX3RvcGljczog
+bnVtYmVyOwogICAgfTsKICB9OwoKICBsZXQgZG5hOiBEbmFSZXNwb25zZSB8IG51bGwgPSBudWxsOwogIGxldCBlcnJvciA9ICcn
+OwogIGxldCBkaW1lbnNpb25FbnRyaWVzOiBBcnJheTxbc3RyaW5nLCBudW1iZXJdPiA9IFtdOwogIGxldCB0b3BpY0VudHJpZXM6
+IEFycmF5PFtzdHJpbmcsIERuYVRvcGljXT4gPSBbXTsKCiAgJDogZGltZW5zaW9uRW50cmllcyA9IGRuYSA/IE9iamVjdC5lbnRy
+aWVzKGRuYS5kaW1lbnNpb25zKSA6IFtdOwogICQ6IHRvcGljRW50cmllcyA9IGRuYSA/IE9iamVjdC5lbnRyaWVzKGRuYS50b3Bp
+Y3MpIDogW107CgogIG9uTW91bnQoYXN5bmMgKCkgPT4gewogICAgdHJ5IHsKICAgICAgY29uc3QgdXNlciA9ICRwYWdlLnVybC5z
+ZWFyY2hQYXJhbXMuZ2V0KCd1c2VyJyk7CiAgICAgIGRuYSA9IGF3YWl0IGFwaS5nZXQ8RG5hUmVzcG9uc2U+KHVzZXIgPyBgL2Fw
+aS9jb2RlLWRuYS8ke3VzZXJ9YCA6ICcvYXBpL2NvZGUtZG5hJyk7CiAgICB9IGNhdGNoIChlOiBhbnkpIHsKICAgICAgZXJyb3Ig
+PSBlPy5tZXNzYWdlIHx8ICdDb3VsZCBub3QgbG9hZCBDb2RlIEROQS4nOwogICAgfQogIH0pOwo8L3NjcmlwdD4KCjxzdmVsdGU6
+aGVhZD4KICA8dGl0bGU+Q29kZSBETkEgwrcgQ29kZUZvcmdlPC90aXRsZT4KPC9zdmVsdGU6aGVhZD4KCnsjaWYgIWRuYSAmJiAh
+ZXJyb3J9CiAgPExvYWRpbmcgLz4KezplbHNlIGlmIGVycm9yfQogIDxkaXYgY2xhc3M9ImFsZXJ0IGVycm9yIj57ZXJyb3J9PC9k
+aXY+Cns6ZWxzZSBpZiBkbmF9CiAgPGRpdiBjbGFzcz0icGFnZS1oZWFkIj4KICAgIDxkaXY+CiAgICAgIDxzcGFuIGNsYXNzPSJl
+eWVicm93Ij5QRVJGT1JNQU5DRSBJTlRFTExJR0VOQ0U8L3NwYW4+CiAgICAgIDxoMT5Db2RlIEROQTwvaDE+CiAgICAgIDxwPntk
+bmEudXNlci51c2VybmFtZX0gwrcge2RuYS51c2VyLnJhbmt9IMK3IFJhdGluZyB7ZG5hLnVzZXIucmF0aW5nfTwvcD4KICAgIDwv
+ZGl2PgogICAgPGRpdiBjbGFzcz0iZG5hLXNjb3JlLWJpZyI+PHN0cm9uZz57ZG5hLm92ZXJhbGx9PC9zdHJvbmc+PHNwYW4+LzEw
+MDwvc3Bhbj48L2Rpdj4KICA8L2Rpdj4KCiAgPHNlY3Rpb24gY2xhc3M9ImRuYS1sYXlvdXQiPgogICAgPGRpdiBjbGFzcz0icGFu
+ZWwgcmFkYXItcGFuZWwiPgogICAgICA8RG5hUmFkYXIgZGltZW5zaW9ucz17ZG5hLmRpbWVuc2lvbnN9IGxhYmVscz17ZG5hLmRp
+bWVuc2lvbl9sYWJlbHN9IC8+CiAgICA8L2Rpdj4KCiAgICA8ZGl2IGNsYXNzPSJwYW5lbCBhcmNoZXR5cGUiPgogICAgICA8c3Bh
+biBjbGFzcz0iZXllYnJvdyI+QVJDSEVUWVBFPC9zcGFuPgogICAgICA8aDI+e2RuYS5hcmNoZXR5cGUubmFtZX08L2gyPgogICAg
+ICA8cD57ZG5hLmFyY2hldHlwZS50YWdsaW5lfTwvcD4KCiAgICAgIDxoMz5TdHJlbmd0aHM8L2gzPgogICAgICA8ZGl2IGNsYXNz
+PSJ0YWctcm93Ij4KICAgICAgICB7I2VhY2ggZG5hLnN0cmVuZ3RocyBhcyBzdHJlbmd0aH0KICAgICAgICAgIDxzcGFuPntzdHJl
+bmd0aH08L3NwYW4+CiAgICAgICAgey9lYWNofQogICAgICA8L2Rpdj4KCiAgICAgIDxoMz5Hcm93dGggYXJlYXM8L2gzPgogICAg
+ICA8ZGl2IGNsYXNzPSJ0YWctcm93Ij4KICAgICAgICB7I2VhY2ggZG5hLmdyb3d0aF9hcmVhcyBhcyBhcmVhfQogICAgICAgICAg
+PHNwYW4+e2FyZWF9PC9zcGFuPgogICAgICAgIHsvZWFjaH0KICAgICAgPC9kaXY+CiAgICA8L2Rpdj4KICA8L3NlY3Rpb24+Cgog
+IDxzZWN0aW9uIGNsYXNzPSJtZXRyaWMtZ3JpZCBkbmEtbWV0cmljcyI+CiAgICB7I2VhY2ggZGltZW5zaW9uRW50cmllcyBhcyBb
+a2V5LCB2YWx1ZV19CiAgICAgIDxkaXYgY2xhc3M9Im1ldHJpYyI+CiAgICAgICAgPHNtYWxsPntkbmEuZGltZW5zaW9uX2xhYmVs
+c1trZXldID8/IGtleX08L3NtYWxsPgogICAgICAgIDxzdHJvbmc+e3ZhbHVlfSU8L3N0cm9uZz4KICAgICAgICA8ZGl2IGNsYXNz
+PSJwcm9ncmVzcyI+PHNwYW4gc3R5bGU9e2B3aWR0aDoke3ZhbHVlfSVgfT48L3NwYW4+PC9kaXY+CiAgICAgIDwvZGl2PgogICAg
+ey9lYWNofQogIDwvc2VjdGlvbj4KCiAgPHNlY3Rpb24gY2xhc3M9InBhbmVsIj4KICAgIDxkaXYgY2xhc3M9InBhbmVsLWhlYWQi
+PgogICAgICA8aDI+VG9waWMgbWFzdGVyeTwvaDI+CiAgICAgIDxzcGFuPntkbmEuc3RhdHMuc29sdmVkX3RvcGljc30gYWN0aXZl
+IHRvcGljczwvc3Bhbj4KICAgIDwvZGl2PgoKICAgIDxkaXYgY2xhc3M9InRhYmxlLXdyYXAiPgogICAgICA8dGFibGU+CiAgICAg
+ICAgPHRoZWFkPgogICAgICAgICAgPHRyPgogICAgICAgICAgICA8dGg+VG9waWM8L3RoPgogICAgICAgICAgICA8dGg+U2NvcmU8
+L3RoPgogICAgICAgICAgICA8dGg+QWNjdXJhY3k8L3RoPgogICAgICAgICAgICA8dGg+U3BlZWQ8L3RoPgogICAgICAgICAgICA8
+dGg+RGlmZmljdWx0eTwvdGg+CiAgICAgICAgICAgIDx0aD5Tb2x2ZWQ8L3RoPgogICAgICAgICAgPC90cj4KICAgICAgICA8L3Ro
+ZWFkPgogICAgICAgIDx0Ym9keT4KICAgICAgICAgIHsjZWFjaCB0b3BpY0VudHJpZXMgYXMgW3RvcGljLCByb3ddfQogICAgICAg
+ICAgICA8dHI+CiAgICAgICAgICAgICAgPHRkPjxiPnt0b3BpY308L2I+PC90ZD4KICAgICAgICAgICAgICA8dGQgY2xhc3M9ImFj
+Y2VudCI+e3Jvdy5zY29yZX08L3RkPgogICAgICAgICAgICAgIDx0ZD57cm93LmFjY3VyYWN5fSU8L3RkPgogICAgICAgICAgICAg
+IDx0ZD57cm93LnNwZWVkfSU8L3RkPgogICAgICAgICAgICAgIDx0ZD57cm93LmRpZmZpY3VsdHl9JTwvdGQ+CiAgICAgICAgICAg
+ICAgPHRkPntyb3cuc29sdmVkfS97cm93LmF0dGVtcHRlZH08L3RkPgogICAgICAgICAgICA8L3RyPgogICAgICAgICAgey9lYWNo
+fQogICAgICAgIDwvdGJvZHk+CiAgICAgIDwvdGFibGU+CiAgICA8L2Rpdj4KICA8L3NlY3Rpb24+CnsvaWZ9Cg==
+'@
+    'frontend\src\routes\(app)\sql-battle\[id]\+page.svelte' = @'
+PHNjcmlwdCBsYW5nPSJ0cyI+CiAgaW1wb3J0IHsgb25Nb3VudCB9IGZyb20gJ3N2ZWx0ZSc7CiAgaW1wb3J0IHsgcGFnZSB9IGZy
+b20gJyRhcHAvc3RvcmVzJzsKICBpbXBvcnQgeyBhcGkgfSBmcm9tICckbGliL2FwaSc7CiAgaW1wb3J0IFZlcmRpY3RCYWRnZSBm
+cm9tICckbGliL2NvbXBvbmVudHMvVmVyZGljdEJhZGdlLnN2ZWx0ZSc7CiAgaW1wb3J0IExvYWRpbmcgZnJvbSAnJGxpYi9jb21w
+b25lbnRzL0xvYWRpbmcuc3ZlbHRlJzsKCiAgdHlwZSBCYXR0bGUgPSB7CiAgICBpZDogc3RyaW5nOwogICAgY2hhbGxlbmdlX2lk
+OiBzdHJpbmc7CiAgICBwbGF5ZXIxX2lkOiBzdHJpbmc7CiAgICBwbGF5ZXIyX2lkOiBzdHJpbmc7CiAgICBwbGF5ZXIxX25hbWU6
+IHN0cmluZzsKICAgIHBsYXllcjJfbmFtZTogc3RyaW5nOwogICAgdGl0bGU6IHN0cmluZzsKICAgIGRlc2NyaXB0aW9uOiBzdHJp
+bmc7CiAgICBzdGF0dXM6IHN0cmluZzsKICAgIG1heF9zY29yZTogbnVtYmVyOwogIH07CgogIHR5cGUgQXR0ZW1wdCA9IHsKICAg
+IGlkOiBzdHJpbmc7CiAgICB1c2VyX2lkOiBzdHJpbmc7CiAgICB1c2VybmFtZTogc3RyaW5nOwogICAgc3RhdHVzOiBzdHJpbmc7
+CiAgICBleGVjdXRpb25fdGltZV9tczogbnVtYmVyOwogICAgZWZmaWNpZW5jeV9zY29yZTogbnVtYmVyOwogICAgc2NvcmU6IG51
+bWJlcjsKICB9OwoKICB0eXBlIEJhdHRsZVJlc3BvbnNlID0gewogICAgYmF0dGxlOiBCYXR0bGU7CiAgICBhdHRlbXB0czogQXR0
+ZW1wdFtdOwogIH07CgogIHR5cGUgU3VibWl0UmVzdWx0ID0gewogICAgY29ycmVjdD86IGJvb2xlYW47CiAgICBzdGF0dXM6IHN0
+cmluZzsKICAgIGZlZWRiYWNrOiBzdHJpbmc7CiAgICBzY29yZTogbnVtYmVyOwogIH07CgogIGxldCBkYXRhOiBCYXR0bGVSZXNw
+b25zZSB8IG51bGwgPSBudWxsOwogIGxldCBxdWVyeSA9ICdTRUxFQ1QgJzsKICBsZXQgcmVzdWx0OiBTdWJtaXRSZXN1bHQgfCBu
+dWxsID0gbnVsbDsKICBsZXQgZXJyb3IgPSAnJzsKICBsZXQgc3VibWl0dGluZyA9IGZhbHNlOwoKICBmdW5jdGlvbiBiZXN0U2Nv
+cmUodXNlcklkOiBzdHJpbmcpOiBudW1iZXIgewogICAgaWYgKCFkYXRhKSByZXR1cm4gMDsKCiAgICBjb25zdCBzY29yZXMgPSBk
+YXRhLmF0dGVtcHRzCiAgICAgIC5maWx0ZXIoKGF0dGVtcHQpID0+IGF0dGVtcHQudXNlcl9pZCA9PT0gdXNlcklkKQogICAgICAu
+bWFwKChhdHRlbXB0KSA9PiBOdW1iZXIoYXR0ZW1wdC5zY29yZSkgfHwgMCk7CgogICAgcmV0dXJuIHNjb3Jlcy5sZW5ndGggPyBN
+YXRoLm1heCguLi5zY29yZXMpIDogMDsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIGxvYWQoKSB7CiAgICB0cnkgewogICAgICBkYXRh
+ID0gYXdhaXQgYXBpLmdldDxCYXR0bGVSZXNwb25zZT4oYC9hcGkvc3FsL2JhdHRsZXMvJHskcGFnZS5wYXJhbXMuaWR9YCk7CiAg
+ICAgIGVycm9yID0gJyc7CiAgICB9IGNhdGNoIChlOiBhbnkpIHsKICAgICAgZXJyb3IgPSBlPy5tZXNzYWdlIHx8ICdDb3VsZCBu
+b3QgbG9hZCBTUUwgYmF0dGxlLic7CiAgICB9CiAgfQoKICBvbk1vdW50KCgpID0+IHsKICAgIHZvaWQgbG9hZCgpOwogIH0pOwoK
+ICBhc3luYyBmdW5jdGlvbiBzdWJtaXQoKSB7CiAgICBpZiAoIWRhdGEgfHwgc3VibWl0dGluZykgcmV0dXJuOwoKICAgIHN1Ym1p
+dHRpbmcgPSB0cnVlOwogICAgZXJyb3IgPSAnJzsKCiAgICB0cnkgewogICAgICByZXN1bHQgPSBhd2FpdCBhcGkucG9zdDxTdWJt
+aXRSZXN1bHQ+KAogICAgICAgIGAvYXBpL3NxbC9jaGFsbGVuZ2VzLyR7ZGF0YS5iYXR0bGUuY2hhbGxlbmdlX2lkfS9zdWJtaXRg
+LAogICAgICAgIHsKICAgICAgICAgIHF1ZXJ5LAogICAgICAgICAgYmF0dGxlX2lkOiBkYXRhLmJhdHRsZS5pZAogICAgICAgIH0K
+ICAgICAgKTsKICAgICAgYXdhaXQgbG9hZCgpOwogICAgfSBjYXRjaCAoZTogYW55KSB7CiAgICAgIGVycm9yID0gZT8ubWVzc2Fn
+ZSB8fCAnUXVlcnkgc3VibWlzc2lvbiBmYWlsZWQuJzsKICAgIH0gZmluYWxseSB7CiAgICAgIHN1Ym1pdHRpbmcgPSBmYWxzZTsK
+ICAgIH0KICB9Cjwvc2NyaXB0PgoKPHN2ZWx0ZTpoZWFkPgogIDx0aXRsZT5TUUwgQmF0dGxlIMK3IENvZGVGb3JnZTwvdGl0bGU+
+Cjwvc3ZlbHRlOmhlYWQ+Cgp7I2lmICFkYXRhICYmICFlcnJvcn0KICA8TG9hZGluZyAvPgp7OmVsc2UgaWYgZXJyb3IgJiYgIWRh
+dGF9CiAgPGRpdiBjbGFzcz0iYWxlcnQgZXJyb3IiPntlcnJvcn08L2Rpdj4KezplbHNlIGlmIGRhdGF9CiAgPGRpdiBjbGFzcz0i
+cGFnZS1oZWFkIj4KICAgIDxkaXY+CiAgICAgIDxzcGFuIGNsYXNzPSJleWVicm93Ij5TUUwgQkFUVExFIMK3IHtkYXRhLmJhdHRs
+ZS5zdGF0dXN9PC9zcGFuPgogICAgICA8aDE+e2RhdGEuYmF0dGxlLnRpdGxlfTwvaDE+CiAgICAgIDxwPntkYXRhLmJhdHRsZS5w
+bGF5ZXIxX25hbWV9IHZzIHtkYXRhLmJhdHRsZS5wbGF5ZXIyX25hbWV9PC9wPgogICAgPC9kaXY+CiAgICA8YSBjbGFzcz0iYnRu
+IGdob3N0IiBocmVmPSIvc3FsLWJhdHRsZSI+4oaQIEFyZW5hPC9hPgogIDwvZGl2PgoKICA8c2VjdGlvbiBjbGFzcz0icmFjZS1z
+Y29yZSI+CiAgICA8ZGl2PgogICAgICA8c21hbGw+e2RhdGEuYmF0dGxlLnBsYXllcjFfbmFtZX08L3NtYWxsPgogICAgICA8c3Ry
+b25nPntiZXN0U2NvcmUoZGF0YS5iYXR0bGUucGxheWVyMV9pZCl9PC9zdHJvbmc+CiAgICA8L2Rpdj4KICAgIDxkaXYgY2xhc3M9
+InJhY2UtdnMiPlZTPC9kaXY+CiAgICA8ZGl2PgogICAgICA8c21hbGw+e2RhdGEuYmF0dGxlLnBsYXllcjJfbmFtZX08L3NtYWxs
+PgogICAgICA8c3Ryb25nPntiZXN0U2NvcmUoZGF0YS5iYXR0bGUucGxheWVyMl9pZCl9PC9zdHJvbmc+CiAgICA8L2Rpdj4KICA8
+L3NlY3Rpb24+CgogIHsjaWYgZGF0YS5iYXR0bGUuc3RhdHVzID09PSAnYWN0aXZlJ30KICAgIDxzZWN0aW9uIGNsYXNzPSJwYW5l
+bCBlZGl0b3ItcGFuZWwiPgogICAgICA8aDI+e2RhdGEuYmF0dGxlLmRlc2NyaXB0aW9ufTwvaDI+CiAgICAgIDxkaXYgY2xhc3M9
+ImNvZGUtYm94Ij5TRUxFQ1QgLyBXSVRIIG9ubHkgwrcgbWF4IHtkYXRhLmJhdHRsZS5tYXhfc2NvcmV9IHBvaW50czwvZGl2Pgog
+ICAgICA8dGV4dGFyZWEgY2xhc3M9ImNvZGUtZWRpdG9yIHNxbCIgYmluZDp2YWx1ZT17cXVlcnl9PjwvdGV4dGFyZWE+CiAgICAg
+IDxidXR0b24gY2xhc3M9ImJ0biBwcmltYXJ5IiBvbjpjbGljaz17c3VibWl0fSBkaXNhYmxlZD17c3VibWl0dGluZyB8fCAhcXVl
+cnkudHJpbSgpfT4KICAgICAgICB7c3VibWl0dGluZyA/ICdTdWJtaXR0aW5nLi4uJyA6ICdTdWJtaXQgcXVlcnkg4oaSJ30KICAg
+ICAgPC9idXR0b24+CgogICAgICB7I2lmIGVycm9yfQogICAgICAgIDxkaXYgY2xhc3M9ImFsZXJ0IGVycm9yIj57ZXJyb3J9PC9k
+aXY+CiAgICAgIHsvaWZ9CgogICAgICB7I2lmIHJlc3VsdH0KICAgICAgICA8ZGl2IGNsYXNzPXtgYWxlcnQgJHtyZXN1bHQuY29y
+cmVjdCA/ICdzdWNjZXNzJyA6ICdlcnJvcid9YH0+CiAgICAgICAgICB7cmVzdWx0LmZlZWRiYWNrfSDCtyBTY29yZSB7cmVzdWx0
+LnNjb3JlfQogICAgICAgIDwvZGl2PgogICAgICB7L2lmfQogICAgPC9zZWN0aW9uPgogIHsvaWZ9CgogIDxzZWN0aW9uIGNsYXNz
+PSJwYW5lbCI+CiAgICA8aDI+QXR0ZW1wdCBmZWVkPC9oMj4KICAgIHsjZWFjaCBkYXRhLmF0dGVtcHRzIGFzIGF0dGVtcHR9CiAg
+ICAgIDxkaXYgY2xhc3M9Imxpc3Qtcm93Ij4KICAgICAgICA8ZGl2PgogICAgICAgICAgPGI+e2F0dGVtcHQudXNlcm5hbWV9PC9i
+PgogICAgICAgICAgPHNtYWxsPnthdHRlbXB0LmV4ZWN1dGlvbl90aW1lX21zfW1zIMK3IGVmZmljaWVuY3kge2F0dGVtcHQuZWZm
+aWNpZW5jeV9zY29yZX08L3NtYWxsPgogICAgICAgIDwvZGl2PgogICAgICAgIDxkaXY+CiAgICAgICAgICA8VmVyZGljdEJhZGdl
+IHZlcmRpY3Q9e2F0dGVtcHQuc3RhdHVzfSAvPgogICAgICAgICAgPHN0cm9uZz57YXR0ZW1wdC5zY29yZX08L3N0cm9uZz4KICAg
+ICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CiAgICB7L2VhY2h9CiAgPC9zZWN0aW9uPgp7L2lmfQo=
+'@
+    'frontend\src\routes\(app)\sql-lab\+page.svelte' = @'
+PHNjcmlwdCBsYW5nPSJ0cyI+CiAgaW1wb3J0IHsgYXBpIH0gZnJvbSAnJGxpYi9hcGknOwogIGltcG9ydCB7IGF1dGggfSBmcm9t
+ICckbGliL3N0b3Jlcy9hdXRoJzsKCiAgdHlwZSBTcWxMYWJSZXN1bHQgPSB7CiAgICByb3dzOiBBcnJheTxSZWNvcmQ8c3RyaW5n
+LCB1bmtub3duPj47CiAgICByb3dfY291bnQ/OiBudW1iZXI7CiAgICBlbGFwc2VkX21zPzogbnVtYmVyOwogIH07CgogIGxldCBx
+dWVyeSA9IGBTRUxFQ1QgcC50b3BpYywgQ09VTlQoKikgQVMgcHJvYmxlbXMKRlJPTSBwcm9ibGVtcyBwCkdST1VQIEJZIHAudG9w
+aWMKT1JERVIgQlkgcHJvYmxlbXMgREVTQ2A7CgogIGxldCByZXN1bHQ6IFNxbExhYlJlc3VsdCB8IG51bGwgPSBudWxsOwogIGxl
+dCBlcnJvciA9ICcnOwogIGxldCBydW5uaW5nID0gZmFsc2U7CgogIGFzeW5jIGZ1bmN0aW9uIHJ1bigpIHsKICAgIGlmIChydW5u
+aW5nIHx8ICFxdWVyeS50cmltKCkpIHJldHVybjsKCiAgICBydW5uaW5nID0gdHJ1ZTsKICAgIGVycm9yID0gJyc7CgogICAgdHJ5
+IHsKICAgICAgcmVzdWx0ID0gYXdhaXQgYXBpLnBvc3Q8U3FsTGFiUmVzdWx0PignL2FwaS9hZG1pbi9zcWwtbGFiJywgeyBxdWVy
+eSB9KTsKICAgIH0gY2F0Y2ggKGU6IGFueSkgewogICAgICByZXN1bHQgPSBudWxsOwogICAgICBlcnJvciA9IGU/Lm1lc3NhZ2Ug
+fHwgJ1NRTCBxdWVyeSBmYWlsZWQuJzsKICAgIH0gZmluYWxseSB7CiAgICAgIHJ1bm5pbmcgPSBmYWxzZTsKICAgIH0KICB9Cgog
+IGZ1bmN0aW9uIGRpc3BsYXkodmFsdWU6IHVua25vd24pOiBzdHJpbmcgewogICAgaWYgKHZhbHVlID09PSBudWxsKSByZXR1cm4g
+J05VTEwnOwogICAgaWYgKHR5cGVvZiB2YWx1ZSA9PT0gJ29iamVjdCcpIHJldHVybiBKU09OLnN0cmluZ2lmeSh2YWx1ZSk7CiAg
+ICByZXR1cm4gU3RyaW5nKHZhbHVlKTsKICB9Cjwvc2NyaXB0PgoKPHN2ZWx0ZTpoZWFkPgogIDx0aXRsZT5TUUwgTGFiIMK3IENv
+ZGVGb3JnZTwvdGl0bGU+Cjwvc3ZlbHRlOmhlYWQ+Cgp7I2lmICRhdXRoLnVzZXI/LnJvbGUgIT09ICdhZG1pbid9CiAgPGRpdiBj
+bGFzcz0iYWxlcnQgZXJyb3IiPkFkbWluaXN0cmF0b3IgYWNjZXNzIHJlcXVpcmVkLjwvZGl2Pgp7OmVsc2V9CiAgPGRpdiBjbGFz
+cz0icGFnZS1oZWFkIj4KICAgIDxkaXY+CiAgICAgIDxzcGFuIGNsYXNzPSJleWVicm93Ij5BRE1JTklTVFJBVE9SIMK3IERCTVMg
+REVNT05TVFJBVElPTjwvc3Bhbj4KICAgICAgPGgxPlNRTCBMYWI8L2gxPgogICAgICA8cD5SZWFkLW9ubHkgU0VMRUNULCBXSVRI
+LCBTSE9XLCBERVNDUklCRSBhbmQgRVhQTEFJTiBleHBsb3JhdGlvbiB3aXRoIHN0cmljdCByZXN1bHQgbGltaXRzLjwvcD4KICAg
+IDwvZGl2PgogIDwvZGl2PgoKICA8c2VjdGlvbiBjbGFzcz0icGFuZWwgZWRpdG9yLXBhbmVsIj4KICAgIDxkaXYgY2xhc3M9ImNv
+ZGUtYm94Ij5FWFBMQUlOIFNFTEVDVCAqIEZST00gc3VibWlzc2lvbnMgV0hFUkUgdXNlcl9pZCA9ICd1MSc7PC9kaXY+CiAgICA8
+dGV4dGFyZWEgY2xhc3M9ImNvZGUtZWRpdG9yIHNxbCIgYmluZDp2YWx1ZT17cXVlcnl9PjwvdGV4dGFyZWE+CiAgICA8YnV0dG9u
+IGNsYXNzPSJidG4gcHJpbWFyeSIgb246Y2xpY2s9e3J1bn0gZGlzYWJsZWQ9e3J1bm5pbmcgfHwgIXF1ZXJ5LnRyaW0oKX0+CiAg
+ICAgIHtydW5uaW5nID8gJ1J1bm5pbmcuLi4nIDogJ1J1biBxdWVyeSDihpInfQogICAgPC9idXR0b24+CgogICAgeyNpZiBlcnJv
+cn0KICAgICAgPGRpdiBjbGFzcz0iYWxlcnQgZXJyb3IiPntlcnJvcn08L2Rpdj4KICAgIHsvaWZ9CgogICAgeyNpZiByZXN1bHQ/
+LnJvd3M/Lmxlbmd0aH0KICAgICAgPGRpdiBjbGFzcz0idGFibGUtd3JhcCI+CiAgICAgICAgPHRhYmxlPgogICAgICAgICAgPHRo
+ZWFkPgogICAgICAgICAgICA8dHI+CiAgICAgICAgICAgICAgeyNlYWNoIE9iamVjdC5rZXlzKHJlc3VsdC5yb3dzWzBdKSBhcyBr
+ZXl9CiAgICAgICAgICAgICAgICA8dGg+e2tleX08L3RoPgogICAgICAgICAgICAgIHsvZWFjaH0KICAgICAgICAgICAgPC90cj4K
+ICAgICAgICAgIDwvdGhlYWQ+CiAgICAgICAgICA8dGJvZHk+CiAgICAgICAgICAgIHsjZWFjaCByZXN1bHQucm93cyBhcyByb3d9
+CiAgICAgICAgICAgICAgPHRyPgogICAgICAgICAgICAgICAgeyNlYWNoIE9iamVjdC52YWx1ZXMocm93KSBhcyB2YWx1ZX0KICAg
+ICAgICAgICAgICAgICAgPHRkPntkaXNwbGF5KHZhbHVlKX08L3RkPgogICAgICAgICAgICAgICAgey9lYWNofQogICAgICAgICAg
+ICAgIDwvdHI+CiAgICAgICAgICAgIHsvZWFjaH0KICAgICAgICAgIDwvdGJvZHk+CiAgICAgICAgPC90YWJsZT4KICAgICAgPC9k
+aXY+CiAgICB7OmVsc2UgaWYgcmVzdWx0fQogICAgICA8ZGl2IGNsYXNzPSJlbXB0eS1zdGF0ZSI+UXVlcnkgY29tcGxldGVkLiBO
+byByb3dzIHJldHVybmVkLjwvZGl2PgogICAgey9pZn0KICA8L3NlY3Rpb24+CnsvaWZ9Cg==
+'@
+}
+
+Step 'Verifying the four route files using literal paths'
+
+foreach ($relative in $files.Keys) {
+    $source = Join-Path $root $relative
+
+    if (-not (Test-Path -LiteralPath $source)) {
+        Write-Host ''
+        Write-Host "Missing literal path: $source" -ForegroundColor Red
+
+        $parent = Split-Path -Parent $source
+        if (Test-Path -LiteralPath $parent) {
+            Write-Host 'Files/folders found in the parent directory:' -ForegroundColor Yellow
+            Get-ChildItem -LiteralPath $parent | ForEach-Object {
+                Write-Host "  $($_.Name)" -ForegroundColor DarkGray
+            }
+        }
+
+        throw "Expected frontend file is missing: $relative"
+    }
+
+    Ok $relative
+}
+
+Step 'Backing up the four Svelte files'
+
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backup = Join-Path $root "patch-backups\PATCH-009H-$stamp"
+New-Item -ItemType Directory -Force -Path $backup | Out-Null
+
+foreach ($relative in $files.Keys) {
+    $source = Join-Path $root $relative
+    $destination = Join-Path $backup $relative
+    $parent = Split-Path -Parent $destination
+
+    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    Copy-Item -LiteralPath $source -Destination $destination -Force
+}
+
+Ok "Backup created: $backup"
+
+Step 'Applying Svelte compiler/type fixes'
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+foreach ($relative in $files.Keys) {
+    $encoded = ($files[$relative] -replace '\s', '')
+    $bytes = [Convert]::FromBase64String($encoded)
+    $content = [Text.Encoding]::UTF8.GetString($bytes)
+    $target = Join-Path $root $relative
+
+    # .NET writes to the exact filename, so [id] is treated literally.
+    [System.IO.File]::WriteAllText($target, $content, $utf8NoBom)
+    Ok $relative
+}
+
+Step 'Running backend regression checks'
+
+Push-Location (Join-Path $root 'backend')
+try {
+    Run-Native $php @('tools\contract_test.php') 'Backend contract tests failed'
+}
+finally {
+    Pop-Location
+}
+
+Ok '43 backend contract checks remain intact'
+
+Step 'Running frontend contract checks'
+
+Push-Location (Join-Path $root 'frontend')
+
+try {
+    Run-Native $npm @('run', 'test:contract') 'Frontend contract tests failed'
+    Ok '27 frontend contract checks remain intact'
+
+    Step 'Running Svelte compiler and TypeScript checks'
+
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    & $npm run check
+    $checkExit = $LASTEXITCODE
+
+    $ErrorActionPreference = $oldPreference
+
+    if ($checkExit -ne 0) {
+        Write-Host ''
+        Warn 'The original 43-error group has been patched, but svelte-check found another issue.'
+        Write-Host 'Do not rerun any earlier PATCH-009 patches.' -ForegroundColor Yellow
+        Write-Host 'Send only the LAST new error block for the next targeted patch.' -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host "Backup: $backup" -ForegroundColor DarkGray
+        exit $checkExit
+    }
+
+    Ok 'Svelte compiler and TypeScript checks pass'
+
+    Step 'Building SvelteKit production bundle'
+
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    & $npm run build
+    $buildExit = $LASTEXITCODE
+
+    $ErrorActionPreference = $oldPreference
+
+    if ($buildExit -ne 0) {
+        Write-Host ''
+        Warn 'Type checking passed, but the production build found the next issue.'
+        Write-Host 'Keep PATCH-009H applied and send the LAST build error block.' -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host "Backup: $backup" -ForegroundColor DarkGray
+        exit $buildExit
+    }
+
+    Ok 'SvelteKit production build passes'
+}
+finally {
+    Pop-Location
+}
+
+Step 'Running final CodeForge verification'
+
+$verify = Join-Path $root 'verify-codeforge.ps1'
+
+if (Test-Path -LiteralPath $verify) {
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $verify -FullBuild
+    $verifyExit = $LASTEXITCODE
+
+    $ErrorActionPreference = $oldPreference
+
+    if ($verifyExit -ne 0) {
+        Warn 'Compiler/build passed, but final verification found another issue.'
+        Write-Host 'Send the LAST verification error block.' -ForegroundColor Yellow
+        exit $verifyExit
+    }
+
+    Ok 'Final full verification passes'
+}
+else {
+    Warn 'verify-codeforge.ps1 was not found, so wrapper verification was skipped.'
+}
+
+Step 'PATCH-009H complete'
+
+Write-Host 'PATCH-009H COMPLETED SUCCESSFULLY' -ForegroundColor Green
+Write-Host ''
+Write-Host 'Fixed:' -ForegroundColor Cyan
+Write-Host '  - PowerShell [id] route-path wildcard bug'
+Write-Host '  - landing onMount cleanup typing'
+Write-Host '  - Code DNA Object.entries typing'
+Write-Host '  - SQL Battle detail parser/type structure'
+Write-Host '  - SQL Lab multiline SQL and result typing'
+Write-Host ''
+Write-Host "Backup: $backup" -ForegroundColor DarkGray
+Write-Host ''
+Write-Host 'Start CodeForge:' -ForegroundColor Cyan
+Write-Host '  powershell -ExecutionPolicy Bypass -File .\start-codeforge.ps1' -ForegroundColor White
+Write-Host ''
+Write-Host 'Frontend: http://localhost:5173' -ForegroundColor Cyan
+Write-Host 'Backend:  http://localhost:8000' -ForegroundColor Cyan

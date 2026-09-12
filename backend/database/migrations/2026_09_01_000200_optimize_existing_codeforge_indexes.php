@@ -10,11 +10,10 @@ return new class extends Migration
     {
         $indexes = [
             'submissions' => [
-                'idx_sub_user_verdict_problem' => ['user_id', 'verdict', 'problem_id'],
-                'idx_sub_session_elapsed' => ['session_id', 'elapsed_seconds'],
-                'idx_sub_contest_user_problem_verdict' => ['contest_id', 'user_id', 'problem_id', 'verdict'],
-                'idx_sub_user_submitted' => ['user_id', 'submitted_at'],
-            ],
+    'idx_sub_user_verdict_problem' => ['userId', 'verdict', 'problemId'],
+    'idx_sub_contest_user_problem_verdict' => ['contestId', 'userId', 'problemId', 'verdict'],
+    'idx_sub_user_submitted' => ['userId', 'timestamp'],
+],
             'problem_sessions' => [
                 'idx_ps_user_problem_status_started' => ['user_id', 'problem_id', 'status', 'started_at'],
                 'idx_ps_status_user_problem_solve' => ['status', 'user_id', 'problem_id', 'solve_time_seconds'],
@@ -36,8 +35,8 @@ return new class extends Migration
                 'idx_activity_user_created' => ['user_id', 'created_at'],
             ],
             'contest_participants' => [
-                'idx_cp_user_contest' => ['user_id', 'contest_id'],
-            ],
+    'idx_cp_user_contest' => ['userId', 'contestId'],
+],
         ];
 
         foreach ($indexes as $table => $tableIndexes) {

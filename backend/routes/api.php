@@ -7,6 +7,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\GhostRaceController;
 use App\Http\Controllers\PerformanceProfileController;
+use App\Http\Controllers\SubmissionAnomalyController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicController;
@@ -41,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/performance-profile', [PerformanceProfileController::class, 'me']);
     Route::get('/performance-profile/{userId}', [PerformanceProfileController::class, 'show']);
+    Route::get('/submission-anomaly', [SubmissionAnomalyController::class, 'me']);
+Route::get('/submission-anomaly/{userId}', [SubmissionAnomalyController::class, 'show']);
     Route::get('/profiles/{id}', [ProfileController::class, 'show']);
     Route::get('/gamification', [GamificationController::class, 'me']);
     Route::get('/rivalry', [RivalryController::class, 'compare']);

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ProblemRecommendations from '$lib/components/ProblemRecommendations.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import Loading from '$lib/components/Loading.svelte';
@@ -32,6 +33,8 @@
     </p>
   </div>
 </div>
+<ProblemRecommendations />
+
 <form class="filter-bar" on:submit|preventDefault={load}>
   <input bind:value={q} placeholder="Search title, topic or tag" /><select bind:value={topic}
     ><option value="">All topics</option>{#each data?.topics || [] as t}<option>{t}</option

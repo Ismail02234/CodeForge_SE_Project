@@ -4,6 +4,8 @@
   import { request } from '$lib/api';
   import Loading from '$lib/components/Loading.svelte';
   import PerformanceRadar from '$lib/components/PerformanceRadar.svelte';
+  import SkillGraph from '$lib/components/SkillGraph.svelte';
+  import SubmissionAnomaly from '$lib/components/SubmissionAnomaly.svelte';
 
   type DnaTopic = {
     score: number;
@@ -187,4 +189,10 @@
       </table>
     </div>
   </section>
+
+  <!-- Ankita module: topic-wise live skill visualization -->
+  <SkillGraph topics={PROFILE.topics} />
+
+  <!-- Ankita module: unusual submission behavior signals -->
+  <SubmissionAnomaly userId={PROFILE.user.id} />
 {/if}

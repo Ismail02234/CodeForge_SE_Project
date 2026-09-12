@@ -2,17 +2,20 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ContestController;
+use App\Http\Controllers\ContestPredictionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\GhostRaceController;
 use App\Http\Controllers\PerformanceProfileController;
 use App\Http\Controllers\ProblemController;
+use App\Http\Controllers\ProblemRecommendationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\RivalryController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SqlBattleController;
+use App\Http\Controllers\SubmissionAnomalyController;
 use App\Http\Controllers\UniversityController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -34,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/options', [UserController::class, 'options']);
     Route::get('/dashboard', [DashboardController::class, 'show']);
 
+    Route::get('/recommendations/problems', [ProblemRecommendationController::class, 'me']);
     Route::get('/problems', [ProblemController::class, 'index']);
     Route::get('/problems/{id}', [ProblemController::class, 'show']);
     Route::post('/problems/{id}/session', [ProblemController::class, 'start']);
@@ -41,10 +45,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/performance-profile', [PerformanceProfileController::class, 'me']);
     Route::get('/performance-profile/{userId}', [PerformanceProfileController::class, 'show']);
+    Route::get('/submission-anomaly', [SubmissionAnomalyController::class, 'me']);
+    Route::get('/submission-anomaly/{userId}', [SubmissionAnomalyController::class, 'show']);
     Route::get('/profiles/{id}', [ProfileController::class, 'show']);
     Route::get('/gamification', [GamificationController::class, 'me']);
     Route::get('/rivalry', [RivalryController::class, 'compare']);
 
+    Route::get('/contest-prediction', [ContestPredictionController::class, 'show']);
     Route::get('/universities', [UniversityController::class, 'index']);
     Route::get('/universities/compare', [UniversityController::class, 'compare']);
     Route::get('/search', [SearchController::class, 'index']);

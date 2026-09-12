@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ContestWinProbability from '$lib/components/ContestWinProbability.svelte';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { api } from '$lib/api';
@@ -78,3 +79,5 @@
           <b>{data.right.dimensions[key]}</b>
         </div>{/each}
     </section>{/if}{/if}
+
+<ContestWinProbability />

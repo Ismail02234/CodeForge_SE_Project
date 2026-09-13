@@ -1,4 +1,5 @@
 <?php
+
 return [
     'name' => env('APP_NAME', 'CodeForge'),
     'env' => env('APP_ENV', 'production'),

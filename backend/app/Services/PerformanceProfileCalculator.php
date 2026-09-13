@@ -79,4 +79,27 @@ final class PerformanceProfileCalculator
             default => ['name' => 'Developing Coder', 'tagline' => 'A growing profile with clear opportunities to specialize.'],
         };
     }
+
+    public static function weaknessSignal(int $learnAccuracy, int $playAccuracy, int $proveAccuracy): ?string
+    {
+        if ($learnAccuracy === 0 && $playAccuracy === 0 && $proveAccuracy === 0) {
+            return null;
+        }
+
+        $accuracies = [
+            'learn' => $learnAccuracy,
+            'play' => $playAccuracy,
+            'prove' => $proveAccuracy,
+        ];
+
+        asort($accuracies);
+        $weakest = array_key_first($accuracies);
+
+        return match ($weakest) {
+            'learn' => 'concept understanding',
+            'play' => 'hands-on practice',
+            'prove' => 'problem solving',
+            default => null,
+        };
+    }
 }

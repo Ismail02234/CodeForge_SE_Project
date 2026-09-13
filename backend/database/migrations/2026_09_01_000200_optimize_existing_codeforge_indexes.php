@@ -13,7 +13,7 @@ return new class extends Migration
                 'idx_sub_user_verdict_problem' => [
                     'user_id',
                     'verdict',
-                    'problemId',
+                    'problem_id',
                 ],
 
                 'idx_sub_session_elapsed' => [
@@ -24,20 +24,15 @@ return new class extends Migration
                 'idx_sub_contest_user_problem_verdict' => [
                     'contest_id',
                     'user_id',
-                    'problemId',
+                    'problem_id',
                     'verdict',
-                ],
-
-                'idx_sub_user_submitted' => [
-                    'user_id',
-                    'submitted_at',
                 ],
             ],
 
             'problem_sessions' => [
                 'idx_ps_user_problem_status_started' => [
                     'user_id',
-                    'problemId',
+                    'problem_id',
                     'status',
                     'started_at',
                 ],
@@ -45,7 +40,7 @@ return new class extends Migration
                 'idx_ps_status_user_problem_solve' => [
                     'status',
                     'user_id',
-                    'problemId',
+                    'problem_id',
                     'solve_time_seconds',
                 ],
             ],
@@ -56,10 +51,6 @@ return new class extends Migration
                     'result',
                     'started_at',
                 ],
-
-                'idx_gr_ghost_session' => [
-                    'ghost_session_id',
-                ],
             ],
 
             'sql_attempts' => [
@@ -67,12 +58,6 @@ return new class extends Migration
                     'battle_id',
                     'status',
                     'user_id',
-                    'score',
-                ],
-
-                'idx_sa_user_status_score' => [
-                    'user_id',
-                    'status',
                     'score',
                 ],
             ],
@@ -102,18 +87,11 @@ return new class extends Migration
                     'created_at',
                 ],
             ],
-
-            'contest_participants' => [
-                'idx_cp_user_contest' => [
-                    'user_id',
-                    'contest_id',
-                ],
-            ],
         ];
 
         foreach ($indexes as $table => $tableIndexes) {
             // Don't touch tables that don't exist.
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 continue;
             }
 
@@ -124,13 +102,13 @@ return new class extends Migration
                 $allColumnsExist = true;
 
                 foreach ($columns as $column) {
-                    if (!Schema::hasColumn($table, $column)) {
+                    if (! Schema::hasColumn($table, $column)) {
                         $allColumnsExist = false;
                         break;
                     }
                 }
 
-                if (!$allColumnsExist) {
+                if (! $allColumnsExist) {
                     continue;
                 }
 
@@ -166,6 +144,6 @@ return new class extends Migration
             [$name]
         );
 
-        return !empty($rows);
+        return ! empty($rows);
     }
 };

@@ -22,7 +22,7 @@ class DashboardController extends Controller
             'solved' => (int) DB::table('submissions')
                 ->where('user_id', $userId)
                 ->where('verdict', 'AC')
-                ->distinct('problem_id')
+                ->distinct()
                 ->count('problem_id'),
             'submissions' => (int) DB::table('submissions')
                 ->where('user_id', $userId)

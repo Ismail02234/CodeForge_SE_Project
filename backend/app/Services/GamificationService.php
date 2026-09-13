@@ -11,7 +11,14 @@ final class GamificationService
         $submissions = (int) DB::table('submissions')->where('user_id', $userId)->count();
         $contests = (int) DB::table('contest_participants')->where('user_id', $userId)->count();
         $sqlAttempts = (int) DB::table('sql_attempts')->where('user_id', $userId)->count();
-        $xp = ($submissions * 50) + ($contests * 100) + ($sqlAttempts * 40);
+        $moduleXp = (int) DB::table('learning_progress as lp')
+            ->join('learning_modules as lm', 'lm.id', '=', 'lp.learning_module_id')
+            ->where('lp.user_id', $userId)
+            ->where('lp.prove_completed', true)
+            ->where('lp.learn_completed', true)
+            ->where('lp.play_completed', true)
+            ->sum('lm.xp_reward');
+        $xp = ($submissions * 50) + ($contests * 100) + ($sqlAttempts * 40) + $moduleXp;
 
         $levels = [
             [0, 'Rookie'], [500, 'Coder'], [1500, 'Specialist'], [3000, 'Expert'],

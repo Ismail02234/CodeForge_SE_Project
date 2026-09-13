@@ -9,6 +9,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(CodeForgeSeeder::class);
+        $this->call(LearningModuleSeeder::class);
         $this->call(UniversityProfileSeeder::class);
+        $this->call(DevelopmentSeeder::class);
     }
 }

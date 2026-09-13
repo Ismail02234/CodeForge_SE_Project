@@ -17,4 +17,11 @@ class University extends Model
     public $timestamps = false;
 
     protected $fillable = ['name', 'city', 'created_at'];
+
+    protected $casts = ['created_at' => 'datetime'];
+
+    public function users()
+    {
+        return $this->hasMany(User::class, 'university', 'name');
+    }
 }

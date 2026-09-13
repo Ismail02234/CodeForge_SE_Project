@@ -241,6 +241,59 @@ final class PerformanceProfileService
         asort($ascending);
         $growthAreas = array_slice(array_keys($ascending), 0, 2);
 
+        $learningStats = DB::table('learning_progress as lp')
+            ->join('learning_modules as lm', 'lm.id', '=', 'lp.learning_module_id')
+            ->where('lp.user_id', $userId)
+            ->selectRaw('
+                COUNT(lp.learning_module_id) as modules_started,
+                SUM(CASE WHEN lp.learn_completed = 1 AND lp.play_completed = 1 AND lp.prove_completed = 1 THEN 1 ELSE 0 END) as mastered,
+                SUM(lp.mastery_score) as total_mastery_score,
+                SUM(
+                    (SELECT COALESCE(SUM(xp_reward), 0) FROM learning_steps WHERE learning_module_id = lp.learning_module_id AND correct_answer IS NOT NULL) +
+                    (SELECT COALESCE(SUM(xp_reward), 0) FROM play_challenges WHERE learning_module_id = lp.learning_module_id) +
+                     (SELECT 0 FROM learning_problems lp2 WHERE lp2.learning_module_id = lp.learning_module_id LIMIT 1)
+                ) as total_possible_score,
+                AVG(lp.concept_mastery) as avg_concept_mastery,
+                AVG(lp.learn_accuracy) as avg_learn_accuracy,
+                AVG(lp.play_accuracy) as avg_play_accuracy,
+                AVG(lp.prove_accuracy) as avg_prove_accuracy,
+                SUM(lp.learn_attempts) as total_learn_attempts,
+                SUM(lp.play_attempts) as total_play_attempts,
+                SUM(lp.prove_attempts) as total_prove_attempts
+            ')
+            ->first();
+
+        $learningMasteryPct = 0;
+        if ($learningStats && $learningStats->total_possible_score > 0) {
+            $learningMasteryPct = (int) round(($learningStats->total_mastery_score / $learningStats->total_possible_score) * 100);
+        }
+
+        $learningByTopic = DB::table('learning_progress as lp')
+            ->join('learning_modules as lm', 'lm.id', '=', 'lp.learning_module_id')
+            ->where('lp.user_id', $userId)
+            ->whereNotNull('lm.topic')
+            ->groupBy('lm.topic')
+            ->selectRaw('
+                lm.topic,
+                COUNT(lp.learning_module_id) as modules_started,
+                SUM(CASE WHEN lp.learn_completed = 1 AND lp.play_completed = 1 AND lp.prove_completed = 1 THEN 1 ELSE 0 END) as mastered,
+                AVG(lp.concept_mastery) as avg_concept_mastery,
+                AVG(lp.learn_accuracy) as avg_learn_accuracy,
+                AVG(lp.play_accuracy) as avg_play_accuracy,
+                AVG(lp.prove_accuracy) as avg_prove_accuracy
+            ')
+            ->get()
+            ->map(fn ($row) => [
+                'topic' => (string) $row->topic,
+                'modules_started' => (int) $row->modules_started,
+                'mastered' => (int) $row->mastered,
+                'avg_concept_mastery' => (int) ($row->avg_concept_mastery ?? 0),
+                'avg_learn_accuracy' => (int) ($row->avg_learn_accuracy ?? 0),
+                'avg_play_accuracy' => (int) ($row->avg_play_accuracy ?? 0),
+                'avg_prove_accuracy' => (int) ($row->avg_prove_accuracy ?? 0),
+            ])
+            ->all();
+
         return [
             'user' => $user->toArray(),
             'dimensions' => $dimensions,
@@ -256,6 +309,19 @@ final class PerformanceProfileService
                 'solved_problems' => $solvedProblems,
                 'solved_topics' => $solvedTopics,
             ],
+            'learning' => [
+                'modules_started' => (int) ($learningStats->modules_started ?? 0),
+                'modules_completed' => (int) ($learningStats->mastered ?? 0),
+                'overall_mastery_pct' => max(0, min(100, $learningMasteryPct)),
+                'avg_concept_mastery' => (int) ($learningStats->avg_concept_mastery ?? 0),
+                'avg_learn_accuracy' => (int) ($learningStats->avg_learn_accuracy ?? 0),
+                'avg_play_accuracy' => (int) ($learningStats->avg_play_accuracy ?? 0),
+                'avg_prove_accuracy' => (int) ($learningStats->avg_prove_accuracy ?? 0),
+                'total_learn_attempts' => (int) ($learningStats->total_learn_attempts ?? 0),
+                'total_play_attempts' => (int) ($learningStats->total_play_attempts ?? 0),
+                'total_prove_attempts' => (int) ($learningStats->total_prove_attempts ?? 0),
+            ],
+            'learning_by_topic' => $learningByTopic,
         ];
     }
 

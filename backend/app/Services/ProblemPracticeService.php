@@ -76,7 +76,10 @@ final class ProblemPracticeService
         );
         $insert->execute(['id' => $id, 'uid' => $userId, 'pid' => $problemId]);
 
-        return [
+        $fetch = $this->pdo->prepare('SELECT * FROM problem_sessions WHERE id = :id');
+        $fetch->execute(['id' => $id]);
+
+        return $fetch->fetch() ?: [
             'id' => $id,
             'user_id' => $userId,
             'problem_id' => $problemId,
@@ -221,6 +224,8 @@ final class ProblemPracticeService
                         'uid' => $userId,
                     ]);
                 }
+
+                $this->notifyLearningProgress($userId, $problemId);
             }
 
             $this->pdo->commit();
@@ -249,5 +254,112 @@ final class ProblemPracticeService
         $stmt->execute(['sid' => $sessionId]);
 
         return $stmt->fetchAll();
+    }
+
+    private function notifyLearningProgress(string $userId, string $problemId): void
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT lp.learning_module_id
+             FROM learning_problems lp
+             INNER JOIN problems p ON p.id = lp.problem_id
+             WHERE lp.problem_id = :pid'
+        );
+        $stmt->execute(['pid' => $problemId]);
+        $links = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (! $links) {
+            return;
+        }
+
+        $moduleIds = array_unique(array_column($links, 'learning_module_id'));
+
+        foreach ($moduleIds as $moduleId) {
+            $this->updateModuleProveProgress($userId, $moduleId);
+        }
+    }
+
+    private function updateModuleProveProgress(string $userId, string $moduleId): void
+    {
+        $problemsStmt = $this->pdo->prepare(
+            'SELECT lp.problem_id
+             FROM learning_problems lp
+             INNER JOIN problems p ON p.id = lp.problem_id
+             WHERE lp.learning_module_id = :mid'
+        );
+        $problemsStmt->execute(['mid' => $moduleId]);
+        $allProblems = $problemsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (! $allProblems) {
+            return;
+        }
+
+        $solvedScore = 0;
+        $allSolved = true;
+
+        foreach ($allProblems as $p) {
+            if ($this->hasSolved($userId, $p['problem_id'])) {
+                $solvedScore++;
+            } else {
+                $allSolved = false;
+            }
+        }
+
+        $progressStmt = $this->pdo->prepare(
+            'SELECT * FROM learning_progress
+             WHERE user_id = :uid AND learning_module_id = :mid
+             LIMIT 1'
+        );
+        $progressStmt->execute(['uid' => $userId, 'mid' => $moduleId]);
+        $progress = $progressStmt->fetch(PDO::FETCH_ASSOC);
+
+        $now = gmdate('Y-m-d H:i:s');
+
+        if (! $progress) {
+            $progressId = 'lp_'.bin2hex(random_bytes(8));
+            $this->pdo->prepare(
+                'INSERT INTO learning_progress
+                    (id, user_id, learning_module_id, learn_completed, play_completed, prove_completed,
+                     learn_score, play_score, prove_score, mastery_score, attempts, hints_used,
+                     started_at, completed_at, created_at)
+                 VALUES
+                    (:id, :uid, :mid, 0, 0, :prove_completed, 0, 0, :prove_score, :mastery_score,
+                     1, 0, :now, :completed_at, :now)'
+            )->execute([
+                'id' => $progressId,
+                'uid' => $userId,
+                'mid' => $moduleId,
+                'prove_completed' => $allSolved ? 1 : 0,
+                'prove_score' => $solvedScore,
+                'mastery_score' => $solvedScore,
+                'now' => $now,
+                'completed_at' => $allSolved ? $now : null,
+            ]);
+
+            return;
+        }
+
+        $proveScore = max((int) ($progress['prove_score'] ?? 0), $solvedScore);
+        $masteryScore = (int) ($progress['learn_score'] ?? 0) + (int) ($progress['play_score'] ?? 0) + $proveScore;
+
+        $update = [
+            'prove_score' => $proveScore,
+            'mastery_score' => $masteryScore,
+        ];
+
+        if ($allSolved) {
+            $update['prove_completed'] = true;
+        }
+
+        $learnCompleted = (bool) ($progress['learn_completed'] ?? false);
+        $playCompleted = (bool) ($progress['play_completed'] ?? false);
+
+        if ($allSolved && $learnCompleted && $playCompleted) {
+            $update['completed_at'] = $now;
+        }
+
+        $set = implode(', ', array_map(fn ($c) => "$c = :$c", array_keys($update)));
+        $params = array_merge(['id' => $progress['id']], $update);
+
+        $this->pdo->prepare("UPDATE learning_progress SET $set WHERE id = :id")->execute($params);
     }
 }

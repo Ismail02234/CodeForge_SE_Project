@@ -48,7 +48,7 @@ check(
 foreach ([
     'users', 'universities', 'problems', 'submissions', 'problem_sessions', 'contests',
     'ghost_races', 'sql_challenges', 'sql_battles', 'sql_attempts', 'activity_logs',
-    'arena_users', 'arena_problems', 'arena_submissions', 'topicstats',
+    'arena_users', 'arena_problems', 'arena_submissions',
 ] as $table) {
     check(str_contains($migration, "hasTable('{$table}')"), "schema covers {$table}");
 }

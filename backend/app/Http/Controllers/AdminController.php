@@ -16,7 +16,8 @@ class AdminController extends Controller
     private array $safeTables = [
         'users', 'universities', 'problems', 'submissions', 'problem_sessions', 'contests', 'contest_problems',
         'contest_participants', 'ghost_races', 'sql_challenges', 'sql_battles', 'sql_attempts', 'activity_logs',
-        'arena_universities', 'arena_users', 'arena_problems', 'arena_submissions', 'topicstats',
+        'arena_universities', 'arena_users', 'arena_problems', 'arena_submissions',
+        'learning_modules', 'learning_steps', 'learning_progress', 'learning_problems', 'play_challenges',
     ];
 
     public function tables()

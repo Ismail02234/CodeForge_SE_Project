@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\GhostRaceController;
+use App\Http\Controllers\LearningController;
 use App\Http\Controllers\PerformanceProfileController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\ProfileController;
@@ -38,6 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/problems/{id}', [ProblemController::class, 'show']);
     Route::post('/problems/{id}/session', [ProblemController::class, 'start']);
     Route::post('/problems/{id}/submit', [ProblemController::class, 'submit']);
+
+    Route::get('/learn', [LearningController::class, 'index']);
+    Route::get('/learn/mastery', [LearningController::class, 'overallMastery']);
+    Route::get('/learn/{slug}', [LearningController::class, 'show']);
+    Route::post('/learn/{slug}/learn', [LearningController::class, 'submitLearn']);
+    Route::post('/learn/{slug}/play', [LearningController::class, 'submitPlay']);
+    Route::post('/learn/{slug}/proven-completion', [LearningController::class, 'provenCompletion']);
 
     Route::get('/performance-profile', [PerformanceProfileController::class, 'me']);
     Route::get('/performance-profile/{userId}', [PerformanceProfileController::class, 'show']);

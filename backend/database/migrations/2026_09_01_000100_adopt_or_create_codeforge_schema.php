@@ -22,7 +22,7 @@ return new class extends Migration
                 $t->string('username', 100)->unique();
                 $t->string('password');
                 $t->enum('role', ['user', 'admin'])->default('user');
-                $t->integer('rating')->default(1200);
+                $t->integer('rating')->default(1200)->index();
                 $t->string('university', 255)->nullable()->index();
                 $t->string('rank', 50)->default('Newbie');
                 $t->dateTime('created_at')->useCurrent();
@@ -70,7 +70,7 @@ return new class extends Migration
         if (! Schema::hasTable('contest_participants')) {
             Schema::create('contest_participants', function (Blueprint $t) {
                 $t->string('contest_id', 50);
-                $t->string('user_id', 50)->index();
+                $t->string('user_id', 50)->index('idx_cpa_user');
                 $t->integer('score')->default(0);
                 $t->dateTime('joined_at')->useCurrent();
                 $t->primary(['contest_id', 'user_id']);
@@ -91,6 +91,8 @@ return new class extends Migration
                 $t->dateTime('created_at')->useCurrent();
                 $t->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
                 $t->foreign('problem_id')->references('id')->on('problems')->cascadeOnDelete();
+                $t->index(['user_id', 'problem_id'], 'idx_ps_user_problem');
+                $t->index(['status'], 'idx_ps_status');
                 $t->index(['user_id', 'problem_id', 'status', 'started_at'], 'idx_ps_user_problem_status_started');
                 $t->index(['status', 'user_id', 'problem_id', 'solve_time_seconds'], 'idx_ps_status_user_problem_solve');
             });
@@ -115,8 +117,13 @@ return new class extends Migration
                 $t->foreign('problem_id')->references('id')->on('problems')->cascadeOnDelete();
                 $t->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
                 $t->foreign('contest_id')->references('id')->on('contests')->nullOnDelete();
+                $t->index(['user_id'], 'idx_sub_user');
+                $t->index(['problem_id'], 'idx_sub_problem');
+                $t->index(['user_id', 'verdict'], 'idx_sub_user_verdict');
                 $t->index(['user_id', 'verdict', 'problem_id'], 'idx_sub_user_verdict_problem');
                 $t->index(['session_id', 'elapsed_seconds'], 'idx_sub_session_elapsed');
+                $t->index(['user_id', 'submitted_at', 'id'], 'idx_sub_user_time');
+                $t->index(['problem_id', 'verdict', 'user_id'], 'idx_sub_problem_verdict_user');
                 $t->index(['contest_id', 'user_id', 'problem_id', 'verdict'], 'idx_sub_contest_user_problem_verdict');
             });
         }
@@ -140,7 +147,9 @@ return new class extends Migration
                 $t->foreign('problem_id')->references('id')->on('problems')->cascadeOnDelete();
                 $t->foreign('ghost_session_id')->references('id')->on('problem_sessions')->cascadeOnDelete();
                 $t->foreign('challenger_session_id')->references('id')->on('problem_sessions')->cascadeOnDelete();
+                $t->index(['challenger_id', 'started_at'], 'idx_gr_challenger');
                 $t->index(['challenger_id', 'result', 'started_at'], 'idx_gr_challenger_result_started');
+                $t->index(['challenger_session_id', 'result'], 'idx_gr_challenger_session_result');
             });
         }
 
@@ -171,7 +180,9 @@ return new class extends Migration
                 $t->foreign('player1_id')->references('id')->on('users')->cascadeOnDelete();
                 $t->foreign('player2_id')->references('id')->on('users')->cascadeOnDelete();
                 $t->foreign('winner_id')->references('id')->on('users')->nullOnDelete();
+                $t->index(['player1_id', 'player2_id'], 'idx_sb_players');
                 $t->index(['challenge_id', 'status', 'player1_id', 'player2_id'], 'idx_sb_challenge_status_players');
+                $t->index(['status'], 'idx_sb_status');
             });
         }
 
@@ -191,6 +202,9 @@ return new class extends Migration
                 $t->foreign('battle_id')->references('id')->on('sql_battles')->cascadeOnDelete();
                 $t->foreign('challenge_id')->references('id')->on('sql_challenges')->cascadeOnDelete();
                 $t->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+                $t->index(['user_id', 'submitted_at'], 'idx_sa_user');
+                $t->index(['battle_id', 'user_id'], 'idx_sa_battle_user');
+                $t->index(['challenge_id', 'status'], 'idx_sa_challenge_status');
                 $t->index(['battle_id', 'status', 'user_id', 'score'], 'idx_sa_battle_status_user_score');
             });
         }
@@ -203,7 +217,8 @@ return new class extends Migration
                 $t->string('details', 500)->nullable();
                 $t->dateTime('created_at')->useCurrent();
                 $t->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-                $t->index(['user_id', 'created_at']);
+                $t->index(['created_at'], 'idx_activity_created');
+                $t->index(['user_id', 'created_at'], 'idx_activity_user_created');
             });
         }
 
@@ -238,15 +253,6 @@ return new class extends Migration
                 $t->integer('runtime_ms');
                 $t->foreign('user_id')->references('user_id')->on('arena_users')->cascadeOnDelete();
                 $t->foreign('problem_id')->references('problem_id')->on('arena_problems')->cascadeOnDelete();
-            });
-        }
-        if (! Schema::hasTable('topicstats')) {
-            Schema::create('topicstats', function (Blueprint $t) {
-                $t->string('topic', 100)->primary();
-                $t->integer('solved')->default(0);
-                $t->integer('total')->default(0);
-                $t->integer('weaknessScore')->default(0);
-                $t->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             });
         }
     }

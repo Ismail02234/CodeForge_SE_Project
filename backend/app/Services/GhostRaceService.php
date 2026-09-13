@@ -189,7 +189,7 @@ final class GhostRaceService
             $finished = strtotime((string) ($race['finished_at'] ?? ''));
 
             if ($finished !== false) {
-                return max(0, $finished - $started) * $speed;
+                return max(0, $finished - $started);
             }
 
             return 0;
@@ -345,9 +345,11 @@ final class GhostRaceService
              INNER JOIN users u ON u.id = gr.ghost_user_id
              WHERE gr.challenger_id = :uid
              ORDER BY gr.started_at DESC
-             LIMIT {$limit}"
+             LIMIT :limit"
         );
-        $stmt->execute(['uid' => $challengerId]);
+        $stmt->bindValue('uid', $challengerId);
+        $stmt->bindValue('limit', $limit, \PDO::PARAM_INT);
+        $stmt->execute();
 
         return $stmt->fetchAll();
     }

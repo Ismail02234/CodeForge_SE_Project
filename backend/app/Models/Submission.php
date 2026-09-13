@@ -18,5 +18,25 @@ class Submission extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['submitted_at' => 'datetime', 'elapsed_seconds' => 'integer', 'runtime_ms' => 'integer', 'memory_kb' => 'integer'];
+    protected $casts = ['submitted_at' => 'datetime', 'elapsed_seconds' => 'integer', 'runtime_ms' => 'integer', 'memory_kb' => 'integer', 'failed_test_case' => 'integer'];
+
+    public function session()
+    {
+        return $this->belongsTo(ProblemSession::class, 'session_id');
+    }
+
+    public function problem()
+    {
+        return $this->belongsTo(Problem::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function contest()
+    {
+        return $this->belongsTo(Contest::class);
+    }
 }

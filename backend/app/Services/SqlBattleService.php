@@ -331,12 +331,13 @@ final class SqlBattleService
              ORDER BY
                  CASE WHEN sb.status = 'active' THEN 0 ELSE 1 END,
                  sb.created_at DESC
-             LIMIT {$limit}"
+             LIMIT :limit"
         );
 
         $stmt->execute([
             'uid1' => $userId,
             'uid2' => $userId,
+            'limit' => $limit,
         ]);
 
         return $stmt->fetchAll();
@@ -346,7 +347,7 @@ final class SqlBattleService
     {
         $limit = max(1, min(50, $limit));
 
-        return $this->pdo->query(
+        $stmt = $this->pdo->prepare(
             "SELECT u.id,
                     u.username,
                     u.rating,
@@ -358,8 +359,12 @@ final class SqlBattleService
              INNER JOIN sql_attempts sa ON sa.user_id = u.id
              GROUP BY u.id, u.username, u.rating, u.rank
              ORDER BY best_score DESC, accepted_runs DESC, u.rating DESC, u.username ASC
-             LIMIT {$limit}"
-        )->fetchAll();
+             LIMIT :limit"
+        );
+        $stmt->bindValue('limit', $limit, \PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
     }
 
     private function maybeFinishBattle(string $battleId): void

@@ -18,10 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias(['admin' => EnsureAdmin::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\RuntimeException $error, Request $request) {
+        $exceptions->render(function (RuntimeException $error, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => $error->getMessage()], 422);
             }
+
             return null;
         });
     })

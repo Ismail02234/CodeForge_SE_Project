@@ -9,6 +9,7 @@
 
   const nav = [
     ['/dashboard', 'Dashboard', '⌁'],
+    ['/learn', 'Learn', '⟩⟩'],
     ['/problems', 'Problems', '<>'],
     ['/contests', 'Contests', '◆'],
     ['/rivalry', 'Rivalry', '⚡'],

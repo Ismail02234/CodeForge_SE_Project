@@ -19,4 +19,14 @@ class SqlChallenge extends Model
     protected $guarded = [];
 
     protected $casts = ['order_sensitive' => 'boolean', 'max_score' => 'integer'];
+
+    public function battles()
+    {
+        return $this->hasMany(SqlBattle::class, 'challenge_id');
+    }
+
+    public function attempts()
+    {
+        return $this->hasMany(SqlAttempt::class, 'challenge_id');
+    }
 }

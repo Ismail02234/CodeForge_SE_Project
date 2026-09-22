@@ -190,9 +190,7 @@
     </div>
   </section>
 
-  <!-- Ankita module: topic-wise live skill visualization -->
   <SkillGraph topics={PROFILE.topics} />
 
-  <!-- Ankita module: unusual submission behavior signals -->
   <SubmissionAnomaly userId={PROFILE.user.id} />
 {/if}

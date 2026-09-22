@@ -1,0 +1,27 @@
+from config import BASE_URL
+from helpers import wait_for_page, body_text
+
+
+def test_sql_battle_page_loads(logged_in_driver):
+    logged_in_driver.get(f"{BASE_URL}/sql-battle")
+    wait_for_page(logged_in_driver)
+
+    text = body_text(logged_in_driver).lower()
+    assert "sql" in text
+
+
+def test_sql_battle_shows_challenge_or_query_ui(logged_in_driver):
+    logged_in_driver.get(f"{BASE_URL}/sql-battle")
+    wait_for_page(logged_in_driver)
+
+    text = body_text(logged_in_driver).lower()
+    assert any(
+        phrase in text
+        for phrase in [
+            "challenge",
+            "query",
+            "battle",
+            "select",
+            "sql",
+        ]
+    )

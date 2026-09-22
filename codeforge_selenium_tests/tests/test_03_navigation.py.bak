@@ -1,0 +1,28 @@
+import pytest
+
+from config import BASE_URL
+from helpers import wait_for_page, body_text
+
+
+@pytest.mark.parametrize(
+    "route, expected_words",
+    [
+        ("/problems", ["problem"]),
+        ("/contests", ["contest"]),
+        ("/rivalry", ["rival"]),
+        ("/universities", ["univers"]),
+        ("/performance-profile", ["performance"]),
+        ("/ghost-race", ["ghost"]),
+        ("/sql-battle", ["sql"]),
+        ("/database", ["database"]),
+        ("/sql-lab", ["sql"]),
+        ("/how-it-works", ["how", "work"]),
+    ],
+)
+def test_authenticated_routes_load(logged_in_driver, route, expected_words):
+    logged_in_driver.get(f"{BASE_URL}{route}")
+    wait_for_page(logged_in_driver)
+
+    assert route in logged_in_driver.current_url
+    text = body_text(logged_in_driver).lower()
+    assert any(word in text for word in expected_words)

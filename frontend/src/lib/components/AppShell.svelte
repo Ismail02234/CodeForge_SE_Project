@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth, logout } from '$lib/stores/auth';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
   let mobileOpen = false;
   let desktopCollapsed = false;
@@ -125,6 +126,8 @@
       </form>
 
       <div class="top-actions">
+        <ThemeToggle />
+
         <a class="top-profile" href={$auth.user ? `/profile/${$auth.user.id}` : '/dashboard'}>
           <span class="status-dot"></span>
           {$auth.user?.username}

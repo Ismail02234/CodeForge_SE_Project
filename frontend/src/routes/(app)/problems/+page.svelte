@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WeakestFieldTarget from '$lib/components/WeakestFieldTarget.svelte';
   import ProblemRecommendations from '$lib/components/ProblemRecommendations.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
@@ -34,6 +35,7 @@
   </div>
 </div>
 <ProblemRecommendations />
+<WeakestFieldTarget />
 
 <form class="filter-bar" on:submit|preventDefault={load}>
   <input bind:value={q} placeholder="Search title, topic or tag" /><select bind:value={topic}

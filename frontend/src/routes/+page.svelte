@@ -3,6 +3,7 @@
   import { auth, loadUser, logout } from '$lib/stores/auth';
   import { api } from '$lib/api';
   import ForgeCanvas from '$lib/components/ForgeCanvas.svelte';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
   let stats = {
     users: 0,
@@ -61,6 +62,7 @@
         <a class="btn ghost magnetic" href="/login">Log in</a>
         <a class="btn primary magnetic" href="/register">Create account</a>
       {/if}
+      <ThemeToggle />
     </div>
   </header>
 

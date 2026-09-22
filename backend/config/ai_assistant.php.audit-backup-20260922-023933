@@ -1,0 +1,88 @@
+<?php
+
+return [
+    'enabled' => env('CODEFORGE_AI_ENABLED', true),
+    'provider' => env('CODEFORGE_AI_PROVIDER', 'gemini'),
+    'model' => env('CODEFORGE_AI_MODEL', 'gemini-2.5-flash'),
+    'api_key' => env('GEMINI_API_KEY'),
+    'timeout' => (int) env('CODEFORGE_AI_TIMEOUT', 20),
+
+    'routes' => [
+        'dashboard' => [
+            'label' => 'Dashboard',
+            'path' => '/dashboard',
+            'description' => 'Overview of the signed-in user and CodeForge activity.',
+            'aliases' => ['dashboard', 'home', 'main page'],
+        ],
+        'problems' => [
+            'label' => 'Problems',
+            'path' => '/problems',
+            'description' => 'Browse and solve coding problems and personalized practice recommendations.',
+            'aliases' => ['problems', 'problem library', 'practice', 'practice problems'],
+        ],
+        'contests' => [
+            'label' => 'Contests',
+            'path' => '/contests',
+            'description' => 'View CodeForge contests and create quick duels.',
+            'aliases' => ['contests', 'contest', 'duels', 'duel'],
+        ],
+        'rivalry' => [
+            'label' => 'Rivalry',
+            'path' => '/rivalry',
+            'description' => 'Compare two Performance Profiles and view competitive statistics.',
+            'aliases' => ['rivalry', 'rivalry lab', 'compare', 'comparison'],
+        ],
+        'universities' => [
+            'label' => 'Universities',
+            'path' => '/universities',
+            'description' => 'Browse university standings and analytics.',
+            'aliases' => ['universities', 'university', 'university standings'],
+        ],
+        'performance_profile' => [
+            'label' => 'Performance Profile',
+            'path' => '/performance-profile',
+            'description' => 'View coding dimensions, topic scores, strengths, and growth areas.',
+            'aliases' => ['performance profile', 'performance', 'skill graph', 'skills', 'code dna'],
+        ],
+        'ghost_race' => [
+            'label' => 'Ghost Race',
+            'path' => '/ghost-race',
+            'description' => 'Race asynchronously against a historical problem-solving session.',
+            'aliases' => ['ghost race', 'ghost races', 'ghost'],
+        ],
+        'sql_battle' => [
+            'label' => 'SQL Battle',
+            'path' => '/sql-battle',
+            'description' => 'Compete on restricted SQL challenges in the sandbox arena.',
+            'aliases' => ['sql battle', 'sql arena', 'sql battle arena', 'sql challenges'],
+        ],
+        'database' => [
+            'label' => 'Database',
+            'path' => '/database',
+            'description' => 'View the authenticated database explorer available in CodeForge.',
+            'aliases' => ['database', 'database explorer'],
+        ],
+        'how_it_works' => [
+            'label' => 'How it works',
+            'path' => '/how-it-works',
+            'description' => 'Read the project architecture and feature explanations.',
+            'aliases' => ['how it works', 'architecture', 'project architecture', 'help page'],
+        ],
+        'search' => [
+            'label' => 'Search',
+            'path' => '/search',
+            'description' => 'Search CodeForge users, problems, and universities.',
+            'aliases' => ['search', 'global search'],
+        ],
+        'sql_lab' => [
+            'label' => 'SQL Lab',
+            'path' => '/sql-lab',
+            'description' => 'Admin-only SQL Lab tooling.',
+            'aliases' => ['sql lab', 'admin sql lab'],
+            'roles' => ['admin'],
+        ],
+    ],
+];
+
+
+

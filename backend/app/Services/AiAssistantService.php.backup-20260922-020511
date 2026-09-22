@@ -1,0 +1,874 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+final class AiAssistantService
+{
+    public function __construct(
+        private readonly ProblemRecommendationService $recommendations,
+        private readonly PerformanceProfileService $performanceProfile,
+    ) {
+    }
+
+    public function respond(
+        User $user,
+        string $message,
+        string $currentPath = '',
+        array $history = []
+    ): array {
+        $message = trim($message);
+
+        if ($message === '') {
+            return $this->response(
+                'Tell me what you want to do in CodeForge.',
+                null,
+                $this->defaultSuggestions(),
+                'local'
+            );
+        }
+
+        if ($this->isDirectCommand($message)) {
+    $local = $this->resolveLocalIntent($user, $message);
+
+    if ($local !== null) {
+        return $local;
+    }
+}
+
+        if (! (bool) config('ai_assistant.enabled', true)) {
+            return $this->fallbackUnavailable();
+        }
+
+        $apiKey = trim((string) config('ai_assistant.api_key', ''));
+        if ($apiKey === '' || config('ai_assistant.provider') !== 'gemini') {
+            return $this->fallbackUnavailable();
+        }
+
+        try {
+            $decision = $this->askModel($user, $message, $currentPath, $history, $apiKey);
+
+            if ($decision !== null) {
+                return $this->executeModelDecision($user, $decision);
+            }
+        } catch (Throwable $exception) {
+            Log::warning('CodeForge AI assistant provider call failed.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        return $this->response(
+            'I could not reach the AI model just now. I can still handle direct CodeForge commands such as â€œopen Ghost Raceâ€, â€œsearch for graphsâ€, â€œcompare me with ismailâ€, or â€œwhat should I practice?â€.',
+            null,
+            $this->defaultSuggestions(),
+            'local'
+        );
+    }
+
+    private function resolveLocalIntent(User $user, string $message): ?array
+    {
+        $normalized = $this->normalize($message);
+
+        if ($this->looksLikeHelp($normalized)) {
+            return $this->response(
+                'I can navigate CodeForge, search users/problems/universities, open a user profile, compare you with another coder, open a problem or contest, identify your weakest practice field, and summarize your Performance Profile.',
+                null,
+                $this->defaultSuggestions(),
+                'local'
+            );
+        }
+
+        if ($this->isMyProfileCommand($normalized)) {
+            return $this->response(
+                'Opening your profile.',
+                $this->navigationAction('/profile/'.rawurlencode((string) $user->id), 'Open profile'),
+                ['Open Performance Profile', 'What should I practice?'],
+                'local'
+            );
+        }
+
+        $featureInfo = $this->featureInfoResponse($user, $normalized);
+        if ($featureInfo !== null) {
+            return $featureInfo;
+        }
+
+        if (preg_match('/\b(?:compare(?:\s+me)?\s+(?:with|to)|versus|vs)\s+([a-z0-9_.-]{2,50})\b/i', $message, $match)) {
+            return $this->compareWithUser($user, (string) $match[1]);
+        }
+
+        if (preg_match('/\b(?:profile\s+of|open\s+profile(?:\s+of)?|show\s+profile(?:\s+of)?)\s+([a-z0-9_.-]{2,50})\b/i', $message, $match)) {
+            return $this->openUserProfile((string) $match[1]);
+        }
+
+        if (preg_match('/\b(?:open|find|show|go to|take me to)\s+(?:the\s+)?problem\s+(.+)$/i', $message, $match)) {
+            return $this->openProblem(trim((string) $match[1]));
+        }
+
+        if (preg_match('/\b(?:open|find|show|go to|take me to)\s+(?:the\s+)?contest\s+(.+)$/i', $message, $match)) {
+            return $this->openContest(trim((string) $match[1]));
+        }
+
+        $directPage = $this->findDirectPage($user, $normalized);
+        if ($directPage !== null) {
+            return $this->response(
+                'Opening '.$directPage['label'].'.',
+                $this->navigationAction($directPage['path'], 'Open '.$directPage['label']),
+                $this->suggestionsForPage($directPage['key']),
+                'local'
+            );
+        }
+
+        if ($this->looksLikeWeaknessRequest($normalized)) {
+            return $this->weaknessResponse($user, $normalized);
+        }
+
+        if ($this->looksLikePerformanceRequest($normalized)) {
+            return $this->performanceResponse($user);
+        }
+
+        if (preg_match('/^(?:search(?:\s+for)?|find)\s+(.+)$/i', $message, $match)) {
+            $query = trim((string) $match[1]);
+            if (mb_strlen($query) >= 2) {
+                return $this->response(
+                    'Searching CodeForge for â€œ'.$query.'â€.',
+                    $this->navigationAction('/search?q='.rawurlencode($query), 'Search CodeForge'),
+                    ['Open Problems', 'Open Universities'],
+                    'local'
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private function askModel(
+        User $user,
+        string $message,
+        string $currentPath,
+        array $history,
+        string $apiKey
+    ): ?array {
+        if (config('ai_assistant.provider') === 'gemini') {
+            return $this->askGeminiModel($user, $message, $currentPath, $history, $apiKey);
+        }
+
+        $routes = $this->availableRoutesFor($user);
+        $routeSummary = [];
+
+        foreach ($routes as $key => $route) {
+            $routeSummary[] = sprintf(
+                '%s: %s â€” %s',
+                $key,
+                $route['label'],
+                $route['description']
+            );
+        }
+
+        $historyLines = [];
+        foreach (array_slice($history, -8) as $item) {
+            $role = ($item['role'] ?? '') === 'assistant' ? 'ASSISTANT' : 'USER';
+            $content = trim((string) ($item['content'] ?? ''));
+            if ($content !== '') {
+                $historyLines[] = $role.': '.mb_substr($content, 0, 600);
+            }
+        }
+
+        $input = implode("\n", array_filter([
+            'SIGNED-IN USER: '.$user->username.' (role: '.$user->role.')',
+            'CURRENT PAGE: '.($currentPath !== '' ? $currentPath : 'unknown'),
+            $historyLines ? "RECENT CONVERSATION:\n".implode("\n", $historyLines) : null,
+            'LATEST USER REQUEST: '.$message,
+        ]));
+
+        $pageKeys = array_keys($routes);
+        $pageKeys[] = '';
+
+        $payload = [
+            'model' => (string) config('ai_assistant.model', 'gemini-3.6-flash'),
+            'store' => false,
+            'reasoning' => ['effort' => 'low'],
+            'max_output_tokens' => 500,
+            'instructions' => implode("\n", [
+                'You are CodeForge Copilot, an in-product assistant for the CodeForge competitive-programming website.',
+                'Be concise and action-oriented.',
+                'Only claim facts supplied in this prompt about CodeForge. If unsure, say so.',
+                'Never invent a URL. Choose only from the listed page keys or one of the supported intents.',
+                'Never request, reveal, or alter passwords, API keys, database credentials, or private secrets.',
+                'Do not perform destructive/admin/database mutations. The application will only execute safe read/navigation actions.',
+                'Supported intents: none, navigate, search, profile, compare, problem, contest, weakest, performance.',
+                'For navigate, set page to one listed page key. For search/profile/compare/problem/contest, put the lookup text in target.',
+                'Use weakest when the user asks what to practice, weakest topic/field, or personalized recommendations.',
+                'Use performance for a personal performance summary.',
+                'If the user asks a general question about a listed CodeForge feature, answer it with intent none.',
+                'Available CodeForge pages:',
+                implode("\n", $routeSummary),
+                'Important product facts: Ghost Race is asynchronous against historical sessions. The normal coding judge is a prototype/simulated judge. SQL Battle executes restricted SQL in a sandbox. Submission anomaly detection flags unusual behavior and does not prove cheating.',
+            ]),
+            'input' => $input,
+            'text' => [
+                'verbosity' => 'low',
+                'format' => [
+                    'type' => 'json_schema',
+                    'name' => 'codeforge_assistant_decision',
+                    'strict' => true,
+                    'schema' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'properties' => [
+                            'reply' => ['type' => 'string'],
+                            'intent' => [
+                                'type' => 'string',
+                                'enum' => ['none', 'navigate', 'search', 'profile', 'compare', 'problem', 'contest', 'weakest', 'performance'],
+                            ],
+                            'target' => ['type' => 'string'],
+                            'page' => ['type' => 'string', 'enum' => $pageKeys],
+                            'suggestions' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string'],
+                                'maxItems' => 3,
+                            ],
+                        ],
+                        'required' => ['reply', 'intent', 'target', 'page', 'suggestions'],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = Http::withToken($apiKey)
+            ->acceptJson()
+            ->connectTimeout(5)
+            ->timeout(max(8, min(45, (int) config('ai_assistant.timeout', 20))))
+            ->withHeaders([
+                'x-goog-api-key' => $apiKey,
+                'Content-Type' => 'application/json',
+            ])
+            ->post(
+                "https://generativelanguage.googleapis.com/v1beta/models/".config('ai_assistant.model', 'gemini-3.6-flash').":generateContent",
+                [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $input]
+                            ]
+                        ]
+                    ]
+                ]
+            );
+
+        if (! $response->successful()) {
+            Log::warning('CodeForge AI assistant provider returned an error.', [
+                'status' => $response->status(),
+            ]);
+
+            return null;
+        }
+
+        $text = $this->extractResponseText((array) $response->json());
+        if ($text === '') {
+            return null;
+        }
+
+        $decoded = json_decode($text, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        return $decoded;
+    }
+
+    private function executeModelDecision(User $user, array $decision): array
+    {
+        $intent = (string) ($decision['intent'] ?? 'none');
+        $target = trim((string) ($decision['target'] ?? ''));
+        $reply = trim((string) ($decision['reply'] ?? ''));
+        $suggestions = $this->cleanSuggestions((array) ($decision['suggestions'] ?? []));
+
+        return match ($intent) {
+            'navigate' => $this->modelNavigationResponse($user, (string) ($decision['page'] ?? ''), $reply, $suggestions),
+            'search' => $target !== ''
+                ? $this->response(
+                    $reply !== '' ? $reply : 'Searching CodeForge.',
+                    $this->navigationAction('/search?q='.rawurlencode($target), 'Search CodeForge'),
+                    $suggestions,
+                    'ai'
+                )
+                : $this->response($reply ?: 'What should I search for?', null, $suggestions, 'ai'),
+            'profile' => $target !== '' ? $this->openUserProfile($target, 'ai') : $this->response($reply ?: 'Which user profile?', null, $suggestions, 'ai'),
+            'compare' => $target !== '' ? $this->compareWithUser($user, $target, 'ai') : $this->response($reply ?: 'Who should I compare you with?', null, $suggestions, 'ai'),
+            'problem' => $target !== '' ? $this->openProblem($target, 'ai') : $this->response($reply ?: 'Which problem should I open?', null, $suggestions, 'ai'),
+            'contest' => $target !== '' ? $this->openContest($target, 'ai') : $this->response($reply ?: 'Which contest should I open?', null, $suggestions, 'ai'),
+            'weakest' => $this->weaknessResponse($user, $this->normalize($target), 'ai'),
+            'performance' => $this->performanceResponse($user, 'ai'),
+            default => $this->response(
+                $reply !== '' ? $reply : 'I can help you navigate CodeForge or inspect your coding data.',
+                null,
+                $suggestions ?: $this->defaultSuggestions(),
+                'ai'
+            ),
+        };
+    }
+
+    private function modelNavigationResponse(User $user, string $page, string $reply, array $suggestions): array
+    {
+        $routes = $this->availableRoutesFor($user);
+        if (! isset($routes[$page])) {
+            return $this->response(
+                $reply !== '' ? $reply : 'That destination is not available for your account.',
+                null,
+                $suggestions ?: $this->defaultSuggestions(),
+                'ai'
+            );
+        }
+
+        $route = $routes[$page];
+
+        return $this->response(
+            $reply !== '' ? $reply : 'Opening '.$route['label'].'.',
+            $this->navigationAction($route['path'], 'Open '.$route['label']),
+            $suggestions ?: $this->suggestionsForPage($page),
+            'ai'
+        );
+    }
+
+    private function compareWithUser(User $user, string $username, string $source = 'local'): array
+    {
+        $match = $this->findUser($username);
+
+        if ($match === null) {
+            return $this->response(
+                'I could not find a coder named â€œ'.$username.'â€. I opened search so you can choose the right result.',
+                $this->navigationAction('/search?q='.rawurlencode($username), 'Search users'),
+                ['Open Rivalry', 'Open Search', 'Open Performance Profile'],
+                $source
+            );
+        }
+
+        if ((string) $match->id === (string) $user->id) {
+            return $this->response(
+                'Choose another coder to compare with yourself.',
+                $this->navigationAction('/rivalry', 'Open Rivalry'),
+                ['Compare me with ismail', 'Open Performance Profile'],
+                $source
+            );
+        }
+
+        $path = '/rivalry?a='.rawurlencode((string) $user->id).'&b='.rawurlencode((string) $match->id);
+
+        return $this->response(
+            'Opening your Rivalry comparison with '.$match->username.'.',
+            $this->navigationAction($path, 'Compare with '.$match->username),
+            ['Open Performance Profile', 'Compare with another coder'],
+            $source
+        );
+    }
+
+    private function openUserProfile(string $username, string $source = 'local'): array
+    {
+        $match = $this->findUser($username);
+
+        if ($match === null) {
+            return $this->response(
+                'I could not find a coder named â€œ'.$username.'â€.',
+                $this->navigationAction('/search?q='.rawurlencode($username), 'Search users'),
+                ['Open Search', 'Open Rivalry', 'Open Performance Profile'],
+                $source
+            );
+        }
+
+        return $this->response(
+            'Opening '.$match->username.'â€™s profile.',
+            $this->navigationAction('/profile/'.rawurlencode((string) $match->id), 'Open '.$match->username),
+            ['Compare me with '.$match->username, 'Open Performance Profile', 'Open Problems'],
+            $source
+        );
+    }
+
+    private function openProblem(string $query, string $source = 'local'): array
+    {
+        $query = $this->cleanLookup($query);
+        if ($query === '') {
+            return $this->response('Tell me the problem name or ID.', null, ['Open Problems'], $source);
+        }
+
+        $problem = DB::table('problems')
+            ->where('id', $query)
+            ->orWhereRaw('LOWER(title) = ?', [mb_strtolower($query)])
+            ->first(['id', 'title']);
+
+        if (! $problem) {
+            $problem = DB::table('problems')
+                ->where('title', 'like', '%'.$this->escapeLike($query).'%')
+                ->orderBy('title')
+                ->first(['id', 'title']);
+        }
+
+        if (! $problem) {
+            return $this->response(
+                'I could not match that problem exactly, so I opened search.',
+                $this->navigationAction('/search?q='.rawurlencode($query), 'Search problems'),
+                ['Open Problems', 'What should I practice?'],
+                $source
+            );
+        }
+
+        return $this->response(
+            'Opening â€œ'.$problem->title.'â€.',
+            $this->navigationAction('/problems/'.rawurlencode((string) $problem->id), 'Open problem'),
+            ['What should I practice?', 'Open Problems'],
+            $source
+        );
+    }
+
+    private function openContest(string $query, string $source = 'local'): array
+    {
+        $query = $this->cleanLookup($query);
+        if ($query === '') {
+            return $this->response('Tell me the contest name or ID.', null, ['Open Contests'], $source);
+        }
+
+        $contest = DB::table('contests')
+            ->where('id', $query)
+            ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($query)])
+            ->first(['id', 'name']);
+
+        if (! $contest) {
+            $contest = DB::table('contests')
+                ->where('name', 'like', '%'.$this->escapeLike($query).'%')
+                ->orderByDesc('starts_at')
+                ->first(['id', 'name']);
+        }
+
+        if (! $contest) {
+            return $this->response(
+                'I could not find that contest.',
+                $this->navigationAction('/contests', 'Open Contests'),
+                ['Open Contests', 'Open Rivalry'],
+                $source
+            );
+        }
+
+        return $this->response(
+            'Opening â€œ'.$contest->name.'â€.',
+            $this->navigationAction('/contests/'.rawurlencode((string) $contest->id), 'Open contest'),
+            ['Open Contests', 'Open Rivalry'],
+            $source
+        );
+    }
+
+    private function weaknessResponse(User $user, string $normalizedMessage = '', string $source = 'local'): array
+    {
+        try {
+            $data = $this->recommendations->forUser((string) $user->id, 3);
+            $weakest = $data['weakest'] ?? null;
+
+            if (! is_array($weakest) || empty($weakest['topic'])) {
+                return $this->response(
+                    'There is not enough submission history yet to identify a reliable weakest field. Keep solving problems and I will be able to target one.',
+                    $this->navigationAction('/problems', 'Open Problems'),
+                    ['Open Problems', 'Open Performance Profile'],
+                    $source
+                );
+            }
+
+            $topic = (string) $weakest['topic'];
+            $attempted = (int) ($weakest['attempted'] ?? 0);
+            $solved = (int) ($weakest['solved'] ?? 0);
+            $problemNames = array_values(array_filter(array_map(
+                fn ($problem) => is_array($problem) ? ($problem['title'] ?? null) : null,
+                (array) ($data['problems'] ?? [])
+            )));
+
+            $reply = $topic.' is currently your weakest practice field based on your CodeForge submission history. You have '.$solved.' accepted attempts from '.$attempted.' attempts in that field.';
+            if ($problemNames) {
+                $reply .= ' Suggested practice: '.implode(', ', array_slice($problemNames, 0, 3)).'.';
+            }
+
+            $explicitTarget = str_contains($normalizedMessage, 'target')
+                || str_contains($normalizedMessage, 'show problems')
+                || str_contains($normalizedMessage, 'take me')
+                || str_contains($normalizedMessage, 'practice my weakest');
+
+            return $this->response(
+                $reply,
+                $explicitTarget
+                    ? $this->navigationAction('/problems?ai_target=weakest', 'Target '.$topic)
+                    : null,
+                ['Target my weakest field', 'Open Performance Profile', 'Open Problems'],
+                $source
+            );
+        } catch (Throwable $exception) {
+            Log::warning('CodeForge AI assistant could not load recommendation data.', [
+                'exception' => $exception::class,
+            ]);
+
+            return $this->response(
+                'I could not load your recommendation data right now.',
+                $this->navigationAction('/problems', 'Open Problems'),
+                ['Open Problems', 'Open Performance Profile'],
+                $source
+            );
+        }
+    }
+
+    private function performanceResponse(User $user, string $source = 'local'): array
+    {
+        try {
+            $profile = $this->performanceProfile->calculate((string) $user->id);
+            $overall = (int) round((float) ($profile['overall'] ?? 0));
+            $archetype = (string) ($profile['archetype']['name'] ?? 'Developing Coder');
+            $strengths = implode(', ', array_slice((array) ($profile['strengths'] ?? []), 0, 2));
+            $growth = implode(', ', array_slice((array) ($profile['growth_areas'] ?? []), 0, 2));
+
+            $parts = ["Your Performance Profile score is {$overall}% and your current archetype is {$archetype}."];
+            if ($strengths !== '') {
+                $parts[] = 'Strengths: '.$strengths.'.';
+            }
+            if ($growth !== '') {
+                $parts[] = 'Growth areas: '.$growth.'.';
+            }
+
+            return $this->response(
+                implode(' ', $parts),
+                null,
+                ['Open Performance Profile', 'What should I practice?', 'Open Problems'],
+                $source
+            );
+        } catch (Throwable $exception) {
+            Log::warning('CodeForge AI assistant could not load performance data.', [
+                'exception' => $exception::class,
+            ]);
+
+            return $this->response(
+                'I could not load your Performance Profile data right now.',
+                $this->navigationAction('/performance-profile', 'Open Performance Profile'),
+                ['Open Performance Profile', 'Open Problems'],
+                $source
+            );
+        }
+    }
+
+    private function findUser(string $username): ?object
+    {
+        $username = $this->cleanLookup($username);
+        if ($username === '') {
+            return null;
+        }
+
+        $user = DB::table('users')
+            ->whereRaw('LOWER(username) = ?', [mb_strtolower($username)])
+            ->first(['id', 'username']);
+
+        if ($user) {
+            return $user;
+        }
+
+        return DB::table('users')
+            ->where('username', 'like', $this->escapeLike($username).'%')
+            ->orderByDesc('rating')
+            ->first(['id', 'username']);
+    }
+
+    private function featureInfoResponse(User $user, string $normalized): ?array
+    {
+        if (! preg_match('/^(?:what is|what are|tell me about|explain|describe)\b/', $normalized)) {
+            return null;
+        }
+
+        $matches = [];
+        foreach ($this->availableRoutesFor($user) as $key => $route) {
+            foreach ((array) ($route['aliases'] ?? []) as $alias) {
+                $alias = $this->normalize((string) $alias);
+                if ($alias !== '' && str_contains($normalized, $alias)) {
+                    $matches[] = [
+                        'key' => $key,
+                        'route' => $route,
+                        'alias_length' => mb_strlen($alias),
+                    ];
+                }
+            }
+        }
+
+        if (! $matches) {
+            return null;
+        }
+
+        usort($matches, fn ($left, $right) => $right['alias_length'] <=> $left['alias_length']);
+        $route = $matches[0]['route'];
+
+        return $this->response(
+            $route['label'].' â€” '.$route['description'],
+            null,
+            ['Open '.$route['label'], ...$this->suggestionsForPage((string) $matches[0]['key'])],
+            'local'
+        );
+    }
+
+    private function findDirectPage(User $user, string $normalized): ?array
+    {
+        if (! preg_match('/\b(open|go to|take me to|navigate to|show me|visit|launch|start|begin|enter)\b/', $normalized)) {
+            return null;
+        }
+
+        $routes = $this->availableRoutesFor($user);
+        $candidates = [];
+
+        foreach ($routes as $key => $route) {
+            foreach ((array) ($route['aliases'] ?? []) as $alias) {
+                $alias = $this->normalize((string) $alias);
+                if ($alias !== '' && str_contains($normalized, $alias)) {
+                    $candidates[] = [
+                        'key' => $key,
+                        'label' => $route['label'],
+                        'path' => $route['path'],
+                        'alias_length' => mb_strlen($alias),
+                    ];
+                }
+            }
+        }
+
+        if (! $candidates) {
+            return null;
+        }
+
+        usort($candidates, fn ($a, $b) => $b['alias_length'] <=> $a['alias_length']);
+
+        return $candidates[0];
+    }
+
+    private function availableRoutesFor(User $user): array
+    {
+        $routes = (array) config('ai_assistant.routes', []);
+
+        return array_filter($routes, function (array $route) use ($user): bool {
+            $roles = (array) ($route['roles'] ?? []);
+
+            return $roles === [] || in_array((string) $user->role, $roles, true);
+        });
+    }
+
+    private function extractResponseText(array $payload): string
+    {
+        foreach ((array) ($payload['output'] ?? []) as $item) {
+            if (($item['type'] ?? '') !== 'message') {
+                continue;
+            }
+
+            foreach ((array) ($item['content'] ?? []) as $content) {
+                if (($content['type'] ?? '') === 'output_text' && isset($content['text'])) {
+                    return trim((string) $content['text']);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function response(
+        string $reply,
+        ?array $action = null,
+        array $suggestions = [],
+        string $source = 'local'
+    ): array {
+        return [
+            'reply' => mb_substr(trim($reply), 0, 1600),
+            'action' => $action,
+            'suggestions' => $this->cleanSuggestions($suggestions),
+            'source' => $source,
+            'model' => $source === 'ai' ? (string) config('ai_assistant.model', '') : null,
+        ];
+    }
+
+    private function navigationAction(string $path, string $label): array
+    {
+        return [
+            'type' => 'navigate',
+            'path' => $path,
+            'label' => $label,
+            'auto_execute' => true,
+        ];
+    }
+
+    private function cleanSuggestions(array $suggestions): array
+    {
+        $clean = [];
+
+        foreach ($suggestions as $suggestion) {
+            $value = trim((string) $suggestion);
+            if ($value !== '' && ! in_array($value, $clean, true)) {
+                $clean[] = mb_substr($value, 0, 90);
+            }
+            if (count($clean) >= 3) {
+                break;
+            }
+        }
+
+        return $clean;
+    }
+
+    private function defaultSuggestions(): array
+    {
+        return ['Open Ghost Race', 'What should I practice?', 'Open SQL Battle'];
+    }
+
+    private function suggestionsForPage(string $page): array
+    {
+        return match ($page) {
+            'problems' => ['What should I practice?', 'Open Performance Profile', 'Open Contests'],
+            'performance_profile' => ['What should I practice?', 'Open Problems', 'Open Rivalry'],
+            'ghost_race' => ['Open Problems', 'Open Performance Profile', 'Open SQL Battle'],
+            'sql_battle' => ['Open Problems', 'Open Ghost Race', 'Open Performance Profile'],
+            'rivalry' => ['Compare me with ismail', 'Open Performance Profile', 'Open Contests'],
+            default => $this->defaultSuggestions(),
+        };
+    }
+
+private function isDirectCommand(string $message): bool
+{
+    $message = $this->normalize($message);
+
+    return str_starts_with($message, 'open ')
+        || str_starts_with($message, 'go to ')
+        || str_starts_with($message, 'take me to ')
+        || str_starts_with($message, 'navigate ')
+        || str_starts_with($message, 'search ')
+        || str_starts_with($message, 'find ');
+}
+
+    private function looksLikeHelp(string $message): bool
+    {
+        return in_array($message, ['help', 'what can you do', 'what can u do', 'commands', 'assistant help'], true)
+            || str_contains($message, 'how can you help');
+    }
+
+    private function isMyProfileCommand(string $message): bool
+    {
+        return $message === 'my profile'
+            || preg_match('/\b(open|show|go to|take me to)\s+(?:me\s+)?my\s+profile\b/', $message) === 1;
+    }
+
+    private function looksLikeWeaknessRequest(string $message): bool
+    {
+        return str_contains($message, 'weakest')
+            || str_contains($message, 'what should i practice')
+            || str_contains($message, 'what do i practice')
+            || str_contains($message, 'recommend problems')
+            || str_contains($message, 'practice recommendation');
+    }
+
+    private function looksLikePerformanceRequest(string $message): bool
+    {
+        return str_contains($message, 'how am i doing')
+            || str_contains($message, 'performance summary')
+            || str_contains($message, 'summarize my performance')
+            || str_contains($message, 'my coding stats')
+            || str_contains($message, 'my strengths')
+            || str_contains($message, 'my growth areas');
+    }
+
+    private function fallbackUnavailable(): array
+    {
+        return $this->response(
+            'The external AI model is not configured, but the built-in CodeForge command assistant is active. Try â€œopen Ghost Raceâ€, â€œsearch for graphsâ€, â€œcompare me with ismailâ€, â€œopen my profileâ€, or â€œwhat should I practice?â€.',
+            null,
+            $this->defaultSuggestions(),
+            'local'
+        );
+    }
+
+    private function normalize(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        $value = preg_replace('/\s+/u', ' ', $value) ?: $value;
+
+        return trim($value, " \t\n\r\0\x0B?!.,");
+    }
+
+    private function cleanLookup(string $value): string
+    {
+        $value = trim($value);
+        $value = trim($value, " \t\n\r\0\x0B?!.,\"'");
+
+        return mb_substr($value, 0, 120);
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return addcslashes($value, '%_\\');
+    }
+
+    private function askGeminiModel(
+        User $user,
+        string $message,
+        string $currentPath,
+        array $history,
+        string $apiKey
+    ): ?array {
+        $model = (string) config('ai_assistant.model', 'gemini-3.6-flash');
+
+        $prompt = json_encode([
+            'user' => $user->username ?? null,
+            'current_path' => $currentPath,
+            'message' => $message,
+            'history' => $history,
+            'instruction' => 'Return only valid JSON matching this schema: reply, intent, target, page, suggestions. Supported intents: none,navigate,search,profile,compare,problem,contest,weakest,performance.'
+        ], JSON_UNESCAPED_UNICODE);
+
+        $response = Http::acceptJson()
+            ->connectTimeout(5)
+            ->timeout(max(8, min(45, (int) config('ai_assistant.timeout', 20))))
+            ->withHeaders([
+                'x-goog-api-key' => $apiKey,
+                'Content-Type' => 'application/json',
+            ])
+            ->post(
+                "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent",
+                [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ]
+            );
+
+        if (! $response->successful()) {
+            Log::warning('Gemini request failed.', [
+    'status' => $response->status(),
+    'body' => $response->body(),
+    'model' => $model,
+    'has_key' => !empty($apiKey),
+]);
+            return null;
+        }
+
+        $text = data_get($response->json(), 'candidates.0.content.parts.0.text', '');
+        $text = trim((string) $text);
+        $text = preg_replace('/^```(?:json)?\s*|\s*```$/', '', $text) ?? $text;
+
+	Log::info('GEMINI RAW TEXT', [
+   	 'text' => $text
+	]);
+
+        $decoded = json_decode($text, true);
+
+if (! is_array($decoded)) {
+    return [
+        'reply' => $text,
+        'intent' => 'none',
+        'target' => '',
+        'page' => '',
+        'suggestions' => [],
+    ];
+}
+
+return $decoded;
+    }
+}

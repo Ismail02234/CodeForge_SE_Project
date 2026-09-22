@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { login, loadUser } from '$lib/stores/auth';
   import { onMount } from 'svelte';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   let username = '';
   let password = '';
   let error = '';
@@ -34,7 +35,10 @@
     </div>
   </section>
   <section class="auth-form-wrap">
-    <a class="back" href="/">← Back to landing</a>
+    <div class="auth-top-row">
+      <a class="back" href="/">← Back to landing</a>
+      <ThemeToggle />
+    </div>
     <form class="auth-form" on:submit|preventDefault={submit}>
       <span class="eyebrow">LOG IN</span>
       <h2>Access CodeForge.</h2>

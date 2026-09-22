@@ -4,6 +4,7 @@
   import { auth, loadUser } from '$lib/stores/auth';
   import AppShell from '$lib/components/AppShell.svelte';
   import Loading from '$lib/components/Loading.svelte';
+  import AIAssistant from '$lib/components/AIAssistant.svelte';
   let ready = false;
   onMount(async () => {
     const user = await loadUser();
@@ -15,6 +16,6 @@
   });
 </script>
 
-{#if ready && $auth.user}<AppShell><slot /></AppShell>{:else}<div class="full-loading">
+{#if ready && $auth.user}<AppShell><slot /></AppShell><AIAssistant />{:else}<div class="full-loading">
     <Loading />
   </div>{/if}

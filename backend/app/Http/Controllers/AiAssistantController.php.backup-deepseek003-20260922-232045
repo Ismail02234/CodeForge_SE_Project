@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\AiAssistantService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+final class AiAssistantController extends Controller
+{
+    public function chat(Request $request, AiAssistantService $assistant): JsonResponse
+    {
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:1000'],
+            'current_path' => ['nullable', 'string', 'max:255'],
+            'history' => ['nullable', 'array', 'max:10'],
+            'history.*.role' => ['required_with:history', 'string', 'in:user,assistant'],
+            'history.*.content' => ['required_with:history', 'string', 'max:1000'],
+        ]);
+
+        $result = $assistant->respond(
+            $request->user(),
+            trim((string) $data['message']),
+            (string) ($data['current_path'] ?? ''),
+            (array) ($data['history'] ?? [])
+        );
+
+        return response()->json($result);
+    }
+}

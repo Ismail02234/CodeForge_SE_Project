@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { api } from '$lib/api';
   import { loadUser, register } from '$lib/stores/auth';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   let username = '';
   let university = '';
   let password = '';
@@ -48,7 +49,10 @@
     </div>
   </section>
   <section class="auth-form-wrap">
-    <a class="back" href="/">← Back to landing</a>
+    <div class="auth-top-row">
+      <a class="back" href="/">← Back to landing</a>
+      <ThemeToggle />
+    </div>
     <form class="auth-form" on:submit|preventDefault={submit}>
       <span class="eyebrow">CREATE ACCOUNT</span>
       <h2>Forge your identity.</h2>

@@ -1032,15 +1032,25 @@ tbody tr:hover {
   max-width: 500px;
 }
 .auth-form-wrap {
+  position: relative;
   padding: 45px clamp(30px, 5vw, 70px);
   display: flex;
   flex-direction: column;
   justify-content: center;
   background: #0a0c10;
 }
-.back {
+.auth-top-row {
   position: absolute;
-  top: 28px;
+  top: 24px;
+  left: clamp(30px, 5vw, 70px);
+  right: clamp(30px, 5vw, 70px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.back {
   color: #777b84;
   font-size: 11px;
 }
@@ -1537,9 +1547,10 @@ tbody tr:hover {
   .auth-form-wrap {
     min-height: 100vh;
   }
-  .back {
-    position: static;
-    margin-bottom: 40px;
+  .auth-top-row {
+    top: 20px;
+    left: 22px;
+    right: 22px;
   }
   .feature-links {
     grid-template-columns: 1fr;
@@ -2740,3 +2751,286 @@ tbody tr:hover {
   }
 }
 /* End smooth collapsible sidebar — PATCH-022B */
+/* CodeForge global light theme — UI only */
+html[data-theme='light'] {
+  --bg: #f5f7fa;
+  --panel: #ffffff;
+  --panel2: #f0f3f7;
+  --line: rgba(18, 25, 34, 0.12);
+  --text: #161a20;
+  --muted: #616a75;
+  --shadow: 0 24px 70px rgba(31, 40, 52, 0.12);
+  color: var(--text);
+  background: var(--bg);
+}
+
+html[data-theme='light'] body {
+  background:
+    radial-gradient(circle at 80% 4%, rgba(255, 50, 29, 0.055), transparent 28%),
+    var(--bg);
+  color: var(--text);
+}
+
+html[data-theme='light'] p {
+  color: var(--muted);
+}
+
+html[data-theme='light'] .panel {
+  background: linear-gradient(180deg, #ffffff, #f7f9fb);
+  border-color: var(--line);
+}
+
+html[data-theme='light'] .btn:not(.primary):not(.danger) {
+  background: #ffffff;
+  color: #171a1f;
+  border-color: var(--line);
+}
+
+html[data-theme='light'] .btn.ghost {
+  background: rgba(18, 25, 34, 0.025);
+}
+
+html[data-theme='light'] .metric,
+html[data-theme='light'] th,
+html[data-theme='light'] select option,
+html[data-theme='light'] .feature-links a,
+html[data-theme='light'] .mini-card,
+html[data-theme='light'] .tag-row span,
+html[data-theme='light'] .rival-card,
+html[data-theme='light'] .uni-card,
+html[data-theme='light'] .ghost-option,
+html[data-theme='light'] .race-score > div,
+html[data-theme='light'] .challenge-list button,
+html[data-theme='light'] .sql-arena-rules span,
+html[data-theme='light'] .sql-order-rule,
+html[data-theme='light'] .sql-challenge-card,
+html[data-theme='light'] .sql-result-card,
+html[data-theme='light'] .sql-opponent-card,
+html[data-theme='light'] .sql-history-card,
+html[data-theme='light'] .sql-battle-status,
+html[data-theme='light'] .sql-player-score,
+html[data-theme='light'] .sql-attempt-row {
+  background: #ffffff;
+  color: #20252b;
+}
+
+html[data-theme='light'] .profile-hero {
+  background: linear-gradient(110deg, rgba(255, 48, 28, 0.065), #ffffff 36%);
+}
+
+html[data-theme='light'] .sql-result-card.success,
+html[data-theme='light'] .sql-battle-status.success {
+  background: linear-gradient(105deg, rgba(73, 224, 149, 0.09), #ffffff 48%);
+}
+
+html[data-theme='light'] .sql-result-card.danger,
+html[data-theme='light'] .sql-battle-status.active {
+  background: linear-gradient(105deg, rgba(255, 84, 51, 0.085), #ffffff 48%);
+}
+
+html[data-theme='light'] .sql-player-score.leader {
+  background: linear-gradient(180deg, rgba(255, 91, 50, 0.07), #ffffff 55%);
+}
+
+html[data-theme='light'] input,
+html[data-theme='light'] select,
+html[data-theme='light'] textarea {
+  background: #ffffff;
+  border-color: #d4d9e1;
+  color: #171a1f;
+}
+
+html[data-theme='light'] input::placeholder,
+html[data-theme='light'] textarea::placeholder {
+  color: #8a929c;
+}
+
+html[data-theme='light'] .code-box,
+html[data-theme='light'] .code-editor {
+  background: #f7f9fb;
+  border-color: #d6dbe2;
+  color: #252b32;
+}
+
+html[data-theme='light'] .progress,
+html[data-theme='light'] .dual-bar {
+  background: #e4e8ee;
+}
+
+html[data-theme='light'] th,
+html[data-theme='light'] td,
+html[data-theme='light'] .list-row,
+html[data-theme='light'] .timeline-row {
+  border-bottom-color: rgba(18, 25, 34, 0.09);
+}
+
+html[data-theme='light'] tbody tr:hover {
+  background: rgba(255, 55, 30, 0.035);
+}
+
+html[data-theme='light'] .sidebar {
+  background: linear-gradient(180deg, #ffffff, #f2f5f8);
+  border-right-color: var(--line);
+  scrollbar-color: rgba(255, 78, 45, 0.45) rgba(18, 25, 34, 0.04);
+}
+
+html[data-theme='light'] .side-caption {
+  color: #8a929c;
+}
+
+html[data-theme='light'] .sidebar nav a {
+  color: #606975;
+}
+
+html[data-theme='light'] .sidebar nav a:hover {
+  color: #171a1f;
+  background: rgba(18, 25, 34, 0.035);
+}
+
+html[data-theme='light'] .sidebar nav a.active {
+  color: #171a1f;
+  background: linear-gradient(90deg, rgba(255, 47, 24, 0.1), transparent);
+}
+
+html[data-theme='light'] .sidebar-user small {
+  color: #6e7782;
+}
+
+html[data-theme='light'] .topbar {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: var(--line);
+}
+
+html[data-theme='light'] .menu-button {
+  border-color: rgba(18, 25, 34, 0.12);
+  background: rgba(18, 25, 34, 0.025);
+  color: #171a1f;
+}
+
+html[data-theme='light'] .menu-button:hover {
+  background: rgba(255, 62, 35, 0.065);
+}
+
+html[data-theme='light'] .global-search {
+  border-color: var(--line);
+  background: #f5f7f9;
+}
+
+html[data-theme='light'] .top-profile {
+  color: #4f5964;
+}
+
+html[data-theme='light'] .landing-noise {
+  background-image:
+    linear-gradient(rgba(18, 25, 34, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 25, 34, 0.026) 1px, transparent 1px);
+}
+
+html[data-theme='light'] .forge-canvas {
+  opacity: 0.42;
+}
+
+html[data-theme='light'] .halo,
+html[data-theme='light'] .core-ring {
+  border-color: rgba(18, 25, 34, 0.11);
+}
+
+html[data-theme='light'] .core-center {
+  background: radial-gradient(circle, #fff2ed, #ffffff 65%);
+}
+
+html[data-theme='light'] .float-card {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme='light'] .feature-card {
+  background: linear-gradient(180deg, #ffffff, #f4f6f8);
+}
+
+html[data-theme='light'] .terminal {
+  background: #f7f9fb;
+}
+
+html[data-theme='light'] .terminal pre {
+  color: #4e5864;
+}
+
+html[data-theme='light'] .terminal pre span {
+  color: #a0a7b0;
+}
+
+html[data-theme='light'] .auth-page {
+  background: #f5f7fa;
+}
+
+html[data-theme='light'] .auth-art {
+  background:
+    linear-gradient(135deg, rgba(255, 50, 29, 0.065), transparent 40%),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(18, 25, 34, 0.025) 80px),
+    #f3f5f8;
+}
+
+html[data-theme='light'] .auth-form-wrap {
+  background: #ffffff;
+}
+
+html[data-theme='light'] .feature-links a,
+html[data-theme='light'] .mini-card,
+html[data-theme='light'] .tag-row span,
+html[data-theme='light'] .rival-card,
+html[data-theme='light'] .uni-card,
+html[data-theme='light'] .ghost-option,
+html[data-theme='light'] .race-score > div,
+html[data-theme='light'] .challenge-list button {
+  border-color: var(--line);
+}
+
+html[data-theme='light'] .ghost-option.selected,
+html[data-theme='light'] .challenge-list button.active {
+  background: rgba(255, 50, 30, 0.065);
+}
+
+html[data-theme='light'] .sql-sandbox-note,
+html[data-theme='light'] .sql-versus-mark,
+html[data-theme='light'] .sql-result-metrics > div,
+html[data-theme='light'] .sql-opponent-avatar,
+html[data-theme='light'] .sql-battle-status-icon {
+  background: #f1f4f7;
+  border-color: #d5dae1;
+}
+
+html[data-theme='light'] .brand > span,
+html[data-theme='light'] .avatar,
+html[data-theme='light'] .profile-avatar,
+html[data-theme='light'] .btn.primary,
+html[data-theme='light'] .assistant-input button {
+  color: #ffffff;
+}
+
+html[data-theme='light'] ::selection {
+  background: rgba(255, 86, 48, 0.2);
+  color: #171a1f;
+}
+/* End CodeForge global light theme */
+
+
+/* PATCH-007: integrated theme-control placement */
+@media (max-width: 800px) {
+  .top-actions {
+    gap: 6px;
+  }
+
+  .top-profile {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .landing-auth {
+    gap: 6px;
+  }
+}
+/* End PATCH-007 */

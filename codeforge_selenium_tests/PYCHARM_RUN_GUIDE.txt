@@ -1,0 +1,215 @@
+CODEFORGE SELENIUM TESTS — PYCHARM RUN GUIDE
+============================================
+
+WHAT THESE TESTS DO
+-------------------
+These are basic Selenium UI smoke tests for CodeForge.
+
+They demonstrate:
+- opening public pages
+- logging in
+- opening dashboard
+- navigating authenticated pages
+- Problems TARGET button
+- Performance Profile
+- Rivalry
+- Ghost Race
+- SQL Battle
+- Logout control
+
+These are intentionally simple tests suitable for a Software Engineering / Lab
+course demonstration. They test the visible browser behavior instead of internal
+Laravel functions.
+
+
+BEFORE YOU START
+----------------
+1. Start XAMPP MySQL.
+2. Start CodeForge normally.
+3. Confirm these work in your browser:
+
+   Frontend:
+   http://localhost:5173
+
+   Backend:
+   http://localhost:8000
+
+4. Confirm the demo account works:
+
+   username: nafiz
+   password: 123456
+
+
+PYCHARM SETUP
+-------------
+1. Open PyCharm.
+
+2. Choose:
+   File > Open
+
+3. Select this extracted folder:
+   codeforge_selenium_tests
+
+4. Wait for PyCharm to open the project.
+
+5. Create a Python virtual environment if PyCharm asks you to.
+   Python 3.10+ is recommended.
+
+6. Open PyCharm Terminal.
+
+7. Run:
+
+   pip install -r requirements.txt
+
+
+CHROME / DRIVER
+---------------
+Use Google Chrome.
+
+Modern Selenium 4 includes Selenium Manager. In most cases you DO NOT have to
+download chromedriver manually.
+
+The first run may take a little longer because Selenium may resolve the correct
+browser driver automatically.
+
+
+RUN ALL TESTS IN PYCHARM TERMINAL
+---------------------------------
+Run:
+
+   python -m pytest -v
+
+
+RUN A SINGLE TEST FILE
+----------------------
+Example:
+
+   python -m pytest tests/test_02_login.py -v
+
+Or:
+
+   python -m pytest tests/test_08_sql_battle.py -v
+
+
+RUN FROM PYCHARM UI
+-------------------
+Option 1:
+- Right-click the "tests" folder
+- Choose "Run 'pytest in tests'"
+
+Option 2:
+- Open one test file
+- Click the green Run triangle beside a test function
+
+
+TESTS IN DEMO ORDER
+-------------------
+For a teacher demonstration, this is a simple order:
+
+1. test_01_public_pages.py
+2. test_02_login.py
+3. test_04_problems_target.py
+4. test_05_performance_profile.py
+5. test_07_ghost_race.py
+6. test_08_sql_battle.py
+
+You do not need to run every test file during the demonstration.
+
+
+WHAT A PASS LOOKS LIKE
+----------------------
+Example:
+
+tests/test_01_public_pages.py::test_landing_page_loads PASSED
+tests/test_02_login.py::test_valid_login_reaches_authenticated_area PASSED
+tests/test_05_performance_profile.py::test_performance_profile_loads PASSED
+
+At the end:
+
+=====================  PASSED  =====================
+
+
+IF A TEST FAILS
+---------------
+The suite automatically saves a screenshot for failed tests in:
+
+   test_screenshots/
+
+This makes it easy to show/debug what the browser saw.
+
+
+RUN WITH A DIFFERENT USER
+-------------------------
+The defaults are:
+
+   username = nafiz
+   password = 123456
+
+You can temporarily change them in PyCharm Terminal:
+
+PowerShell:
+
+   $env:CODEFORGE_USERNAME="ismail"
+   $env:CODEFORGE_PASSWORD="123456"
+   python -m pytest -v
+
+
+RUN HEADLESS
+------------
+Normal mode visibly opens Chrome, which is better for teacher demonstration.
+
+For headless mode:
+
+PowerShell:
+
+   $env:CODEFORGE_HEADLESS="1"
+   python -m pytest -v
+
+
+CHANGE BASE URL
+---------------
+Default:
+
+   http://localhost:5173
+
+If needed:
+
+PowerShell:
+
+   $env:CODEFORGE_BASE_URL="http://localhost:5173"
+   python -m pytest -v
+
+
+HOW TO EXPLAIN SELENIUM TO THE TEACHER
+--------------------------------------
+Short answer:
+
+"Selenium automates a real web browser. The test opens CodeForge, finds UI
+elements, performs actions like login or navigation, and then verifies that the
+expected page or feature appears."
+
+Example:
+
+   Browser opens /login
+          ↓
+   Selenium enters username/password
+          ↓
+   Clicks login button
+          ↓
+   Waits for redirect
+          ↓
+   Checks that authenticated content appears
+
+
+IMPORTANT
+---------
+These are UI smoke tests.
+
+They do NOT replace:
+- Laravel unit tests
+- API tests
+- database tests
+- security tests
+
+Their purpose is to demonstrate that important CodeForge user flows work through
+a real browser.

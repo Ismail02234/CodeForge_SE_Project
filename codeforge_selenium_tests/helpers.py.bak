@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+def wait_for_page(driver, timeout=10):
+    WebDriverWait(driver, timeout).until(
+        lambda d: d.execute_script("return document.readyState") == "complete"
+    )
+
+
+def body_text(driver) -> str:
+    return driver.find_element(By.TAG_NAME, "body").text
+
+
+def click_text(driver, text: str, timeout=10):
+    xpath = (
+        f"//*[self::a or self::button]"
+        f"[contains(translate(normalize-space(.), "
+        f"'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), "
+        f"'{text.lower()}')]"
+    )
+
+    element = WebDriverWait(driver, timeout).until(
+        EC.element_to_be_clickable((By.XPATH, xpath))
+    )
+
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center'});",
+        element,
+    )
+
+    element.click()
+    return element
+
+
+def find_first(driver, selectors):
+    for by, value in selectors:
+        found = driver.find_elements(by, value)
+
+        if found:
+            return found[0]
+
+    return None
+
+
+def login(driver, base_url: str, username: str, password: str, timeout=10):
+    driver.get(f"{base_url}/login")
+    wait_for_page(driver, timeout)
+
+    WebDriverWait(driver, timeout).until(
+        lambda d: len(d.find_elements(By.CSS_SELECTOR, "input")) >= 2
+    )
+
+    username_input = find_first(
+        driver,
+        [
+            (By.NAME, "username"),
+            (By.NAME, "email"),
+            (By.NAME, "identifier"),
+            (By.ID, "username"),
+            (By.ID, "email"),
+            (By.CSS_SELECTOR, "input[placeholder*='user' i]"),
+            (By.CSS_SELECTOR, "input[placeholder*='email' i]"),
+            (
+                By.CSS_SELECTOR,
+                "input:not([type='password']):not([type='hidden']):not([type='submit'])",
+            ),
+        ],
+    )
+
+    password_input = find_first(
+        driver,
+        [
+            (By.NAME, "password"),
+            (By.ID, "password"),
+            (By.CSS_SELECTOR, "input[type='password']"),
+        ],
+    )
+
+    assert username_input is not None, "Username/email field was not found"
+    assert password_input is not None, "Password field was not found"
+
+    username_input.clear()
+    username_input.send_keys(username)
+
+    password_input.clear()
+    password_input.send_keys(password)
+
+    submit = find_first(
+        driver,
+        [
+            (By.CSS_SELECTOR, "button[type='submit']"),
+            (By.CSS_SELECTOR, "input[type='submit']"),
+            (
+                By.XPATH,
+                "//button[contains(translate(., "
+                "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "
+                "'abcdefghijklmnopqrstuvwxyz'), 'login')]",
+            ),
+            (
+                By.XPATH,
+                "//button[contains(translate(., "
+                "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "
+                "'abcdefghijklmnopqrstuvwxyz'), 'sign in')]",
+            ),
+        ],
+    )
+
+    assert submit is not None, "Login button was not found"
+
+    submit.click()
+
+    WebDriverWait(driver, timeout).until(
+        lambda d: "/login" not in d.current_url
+    )
+
+    return driver.current_url

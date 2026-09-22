@@ -1,0 +1,22 @@
+from selenium.webdriver.common.by import By
+
+from config import BASE_URL
+from helpers import wait_for_page
+
+
+def test_logout_control_exists(logged_in_driver):
+    # This is intentionally a safe UI smoke test. It verifies the user can
+    # find a logout action without depending on a particular sidebar layout.
+    logged_in_driver.get(f"{BASE_URL}/dashboard")
+    wait_for_page(logged_in_driver)
+
+    logout_controls = logged_in_driver.find_elements(
+        By.XPATH,
+        "//*[self::button or self::a]"
+        "[contains(translate(normalize-space(.), "
+        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'logout') "
+        "or contains(translate(normalize-space(.), "
+        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'log out')]",
+    )
+
+    assert logout_controls, "Logout control was not found"

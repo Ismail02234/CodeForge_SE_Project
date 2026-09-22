@@ -45,3 +45,6 @@ legacy-php/
 /*CONTRIBUTION_GUIDE*.md
 /patch-backups/
 /merge-conflict-backups/
+
+# Local PowerShell patch scripts
+*.ps1

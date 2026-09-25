@@ -18,6 +18,7 @@ use App\Http\Controllers\UniversityController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AIJudgeFeedbackController;
 
 /*
  * CodeForge session bootstrap.
@@ -76,6 +77,7 @@ Route::get('/submission-anomaly/{userId}', [SubmissionAnomalyController::class, 
 
     Route::get('/database/users', [DatabaseController::class, 'users']);
 
+
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/tables', [AdminController::class, 'tables']);
         Route::get('/tables/{table}', [AdminController::class, 'rows']);
@@ -84,4 +86,6 @@ Route::get('/submission-anomaly/{userId}', [SubmissionAnomalyController::class, 
         Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
         Route::post('/sql-lab', [AdminController::class, 'sqlLab']);
     });
+Route::get('/submissions/{submissionId}/ai-feedback', [AIJudgeFeedbackController::class, 'show']);
+
 });

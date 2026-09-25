@@ -1,4 +1,4 @@
-<s<script lang="ts">
+<script lang="ts">
   import PerformanceRadar from '$lib/components/PerformanceRadar.svelte';
   import SkillGraph from '$lib/components/SkillGraph.svelte';
   import SubmissionAnomaly from '$lib/components/SubmissionAnomaly.svelte';
@@ -199,8 +199,7 @@
   <section class="panel">
     <PerformanceRadar
       dimensions={PROFILE.dimensions}
-      overall={PROFILE.overall}
-    />
+          />
   </section>
 
 

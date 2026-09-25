@@ -10,6 +10,28 @@
   let result: any = null;
   let error = '';
   let busy = false;
+let aiFeedback: any = null;
+let aiBusy = false;
+
+async function loadAIFeedback() {
+  if (!result?.id || result.verdict === 'AC') return;
+
+  aiBusy = true;
+  aiFeedback = null;
+  error = '';
+
+  try {
+    const response = await api.get(
+      `/api/submissions/${result.id}/ai-feedback`
+    );
+
+    aiFeedback = response.feedback;
+  } catch (e: any) {
+    error = e.message;
+  } finally {
+    aiBusy = false;
+  }
+}
   $: contest = $page.url.searchParams.get('contest');
   onMount(async () => {
     try {
@@ -28,6 +50,9 @@
         language,
         contest_id: contest || null,
       });
+if (result.verdict !== 'AC') {
+  await loadAIFeedback();
+}
       data = await api.get(`/api/problems/${$page.params.id}`);
     } catch (e: any) {
       error = e.message;
@@ -73,12 +98,61 @@
           ><option>C++</option><option>Python</option><option>Java</option></select
         >
       </div>
-      <textarea class="code-editor" bind:value={code} spellcheck="false"></textarea>{#if result}<div
-          class={`alert ${result.verdict === 'AC' ? 'success' : 'error'}`}
-        >
-          <VerdictBadge verdict={result.verdict} /> Runtime {result.runtime_ms}ms · Memory {result.memory_kb}KB{#if result.failed_test_case}
-            · Failed test #{result.failed_test_case}{/if}
-        </div>{/if}{#if error}<div class="alert error">{error}</div>{/if}
+      <textarea class="code-editor" bind:value={code} spellcheck="false"></textarea>{#if result}
+  <div class={`alert ${result.verdict === 'AC' ? 'success' : 'error'}`}>
+    <VerdictBadge verdict={result.verdict} />
+    Runtime {result.runtime_ms}ms · Memory {result.memory_kb}KB
+
+    {#if result.failed_test_case}
+      · Failed test #{result.failed_test_case}
+    {/if}
+  </div>
+
+  {#if result.verdict !== 'AC'}
+    <div class="panel ai-feedback-panel">
+      <div class="panel-head">
+        <h2>🤖 AI Judge Feedback</h2>
+
+        {#if aiBusy}
+          <span class="muted">Analyzing...</span>
+        {/if}
+      </div>
+
+      {#if aiBusy}
+        <p class="muted">
+          AI is analyzing your failed submission...
+        </p>
+      {:else if aiFeedback?.available}
+        <div class="ai-feedback">
+          <div class="ai-diagnosis">
+            <strong>Diagnosis</strong>
+            <p>{aiFeedback.diagnosis}</p>
+          </div>
+
+          <div class="ai-hint">
+            <strong>💡 Hint 1 — Concept</strong>
+            <p>{aiFeedback.hint_1}</p>
+          </div>
+
+          <div class="ai-hint">
+            <strong>💡 Hint 2 — Algorithm</strong>
+            <p>{aiFeedback.hint_2}</p>
+          </div>
+
+          <div class="ai-hint">
+            <strong>🐛 Hint 3 — Bug</strong>
+            <p>{aiFeedback.hint_3}</p>
+          </div>
+
+          <div class="ai-explanation">
+            <strong>📘 Explanation</strong>
+            <p>{aiFeedback.explanation}</p>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
+{/if}{#if error}<div class="alert error">{error}</div>{/if}
       <div class="page-actions">
         <button class="btn primary" on:click={submit} disabled={busy}
           >{busy ? 'JUDGING...' : 'Submit solution →'}</button

@@ -11,12 +11,14 @@
   const nav = [
     ['/dashboard', 'Dashboard', '⌁'],
     ['/problems', 'Problems', '<>'],
+    ['/learn', 'Learn', 'L'],
     ['/contests', 'Contests', '◆'],
     ['/rivalry', 'Rivalry', '⚡'],
     ['/universities', 'Universities', '⌂'],
     ['/performance-profile', 'Performance Profile', '⬡'],
     ['/ghost-race', 'Ghost Race', '◉'],
     ['/sql-battle', 'SQL Battle', '▦'],
+    ['/visualizer', 'DSA Visualizer', 'DSA'],
     ['/database', 'Database', '▤'],
     ['/how-it-works', 'How it works', '?'],
   ];

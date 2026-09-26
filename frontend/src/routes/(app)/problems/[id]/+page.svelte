@@ -10,6 +10,26 @@
   let result: any = null;
   let error = '';
   let busy = false;
+  let aiFeedback: any = null;
+  let aiBusy = false;
+  let aiError = '';
+
+  async function loadAIFeedback() {
+    if (!result?.id || result.verdict === 'AC') return;
+
+    aiBusy = true;
+    aiFeedback = null;
+    aiError = '';
+
+    try {
+      const response = await api.get(`/api/submissions/${result.id}/ai-feedback`);
+      aiFeedback = response.feedback;
+    } catch (e: any) {
+      aiError = e.message;
+    } finally {
+      aiBusy = false;
+    }
+  }
   $: contest = $page.url.searchParams.get('contest');
   onMount(async () => {
     try {
@@ -22,12 +42,17 @@
   async function submit() {
     busy = true;
     error = '';
+    aiError = '';
+    aiFeedback = null;
     try {
       result = await api.post(`/api/problems/${$page.params.id}/submit`, {
         source_code: code,
         language,
         contest_id: contest || null,
       });
+      if (result.verdict !== 'AC') {
+        void loadAIFeedback();
+      }
       data = await api.get(`/api/problems/${$page.params.id}`);
     } catch (e: any) {
       error = e.message;
@@ -73,12 +98,53 @@
           ><option>C++</option><option>Python</option><option>Java</option></select
         >
       </div>
+      <div class="code-box">
+        <strong>&#x1F916; AI Judge</strong>
+        <p class="tiny muted">
+          Submit normally. If your solution fails, Groq-powered AI Judge feedback will appear here automatically with diagnosis and hints.
+        </p>
+      </div>
       <textarea class="code-editor" bind:value={code} spellcheck="false"></textarea>{#if result}<div
           class={`alert ${result.verdict === 'AC' ? 'success' : 'error'}`}
         >
           <VerdictBadge verdict={result.verdict} /> Runtime {result.runtime_ms}ms · Memory {result.memory_kb}KB{#if result.failed_test_case}
             · Failed test #{result.failed_test_case}{/if}
-        </div>{/if}{#if error}<div class="alert error">{error}</div>{/if}
+        </div>{/if}{#if result && result.verdict !== 'AC'}
+        <div class="panel ai-feedback-panel">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">GROQ-POWERED GUIDANCE</span>
+              <h2>&#x1F916; AI Judge Feedback</h2>
+            </div>
+            <button class="btn ghost" on:click={loadAIFeedback} disabled={aiBusy}>
+              {aiBusy ? 'Analyzing...' : aiFeedback ? 'Analyze again' : 'Analyze with AI Judge'}
+            </button>
+          </div>
+
+          {#if aiBusy}
+            <p class="muted">AI Judge is analyzing your failed submission...</p>
+          {:else if aiError}
+            <div class="alert error">
+              {aiError}
+            </div>
+            <div class="page-actions">
+              <button class="btn ghost" on:click={loadAIFeedback}>Retry AI analysis</button>
+            </div>
+          {:else if aiFeedback?.available}
+            <div class="editor-panel">
+              <div class="code-box"><strong>Diagnosis</strong><p>{aiFeedback.diagnosis}</p></div>
+              <div class="code-box"><strong>&#x1F4A1; Hint 1 &mdash; Concept</strong><p>{aiFeedback.hint_1}</p></div>
+              <div class="code-box"><strong>&#x1F4A1; Hint 2 &mdash; Algorithm</strong><p>{aiFeedback.hint_2}</p></div>
+              <div class="code-box"><strong>&#x1F41B; Hint 3 &mdash; Likely bug</strong><p>{aiFeedback.hint_3}</p></div>
+              <div class="code-box"><strong>&#x1F4D8; What to review</strong><p>{aiFeedback.explanation}</p></div>
+            </div>
+          {:else}
+            <p class="muted">Use AI Judge to analyze this failed attempt.</p>
+          {/if}
+        </div>
+      {/if}
+
+{#if error}<div class="alert error">{error}</div>{/if}
       <div class="page-actions">
         <button class="btn primary" on:click={submit} disabled={busy}
           >{busy ? 'JUDGING...' : 'Submit solution →'}</button

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AIJudgeFeedbackController;
 use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\ContestController;
 use App\Http\Controllers\ContestPredictionController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\GhostRaceController;
+use App\Http\Controllers\LearningController;
 use App\Http\Controllers\PerformanceProfileController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\ProblemRecommendationController;
@@ -37,6 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', fn (Request $request) => $request->user());
     Route::get('/users/options', [UserController::class, 'options']);
     Route::get('/dashboard', [DashboardController::class, 'show']);
+
+    Route::get('/learn', [LearningController::class, 'index']);
+    Route::get('/learn/mastery', [LearningController::class, 'overallMastery']);
+    Route::get('/learn/{slug}', [LearningController::class, 'show']);
+    Route::post('/learn/{slug}/learn', [LearningController::class, 'submitLearn']);
+    Route::post('/learn/{slug}/play', [LearningController::class, 'submitPlay']);
+    Route::post('/learn/{slug}/proven-completion', [LearningController::class, 'provenCompletion']);
     Route::post('/assistant/chat', [AiAssistantController::class, 'chat'])->middleware('throttle:30,1');
 
     Route::get('/recommendations/problems', [ProblemRecommendationController::class, 'me']);
@@ -44,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/problems/{id}', [ProblemController::class, 'show']);
     Route::post('/problems/{id}/session', [ProblemController::class, 'start']);
     Route::post('/problems/{id}/submit', [ProblemController::class, 'submit']);
+    Route::get('/submissions/{submissionId}/ai-feedback', [AIJudgeFeedbackController::class, 'show']);
 
     Route::get('/performance-profile', [PerformanceProfileController::class, 'me']);
     Route::get('/performance-profile/{userId}', [PerformanceProfileController::class, 'show']);

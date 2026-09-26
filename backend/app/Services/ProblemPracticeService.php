@@ -167,7 +167,7 @@ final class ProblemPracticeService
 
         $started = strtotime((string) $session['started_at']);
         $elapsed = max(1, time() - ($started !== false ? $started : time()));
-        $judged = $this->judge->evaluate($sourceCode, $language, (string) $session['difficulty']);
+        $judged = $this->judge->evaluate($sourceCode, $language, (string) $session['difficulty'], $problemId);
         $submissionId = Ids::make('sub');
 
         $this->pdo->beginTransaction();

@@ -48,3 +48,12 @@ legacy-php/
 
 # Local PowerShell patch scripts
 *.ps1
+
+# Local development / generated files
+*.ps1
+*.pdf
+patch-backups/
+frontend/node_modules/
+backend/vendor/
+backend/.env
+backend/storage/logs/
